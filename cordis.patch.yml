@@ -1,0 +1,13 @@
+- insert:
+    - id: dsh-delta-chat
+      name: dsh-delta-chat
+      config:
+        displayName: 大肥鱼
+        selfStatus: 一条住在服务器鱼缸里的胖鲸鱼，专业摸鱼
+        replyTimingScale: 1
+        maxReplyDelaySeconds: 90
+        proactive: true
+        proactiveMinIdleHours: 12
+        proactiveCooldownHours: 24
+        quietStart: 23
+        quietEnd: 8
