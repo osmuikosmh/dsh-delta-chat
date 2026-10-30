@@ -120,6 +120,7 @@ export function apply(ctx, rawConfig = {}) {
       const style = service.prompts.style()
       const lines = [
         `子智能体类型：${kind === 'owner' ? '主人助理（完整工具）' : '朋友聊天（只读工具）'}`,
+        `最近记录的心情：${service.store.state.mood?.text || '（还没有）'}`,
         `风格文件：${service.prompts.paths().persona}（${style.length} 字）`,
         '',
         '【子智能体收到的系统提示词】',
@@ -128,6 +129,7 @@ export function apply(ctx, rawConfig = {}) {
       if (args.chatId !== undefined && args.chatId !== null && args.chatId !== '') {
         const chat = service.store.chat(Number(args.chatId))
         const recent = formatTranscript(chat, service.memory.keep)
+        lines.push('', `【此刻的心情】${service.moodText(chat)}`)
         lines.push('', `【该会话的压缩记忆】${chat.longMemory || '（还没有压缩过记忆）'}`, '', '【该会话最近几条原文】', recent)
       }
       return { ok: true, text: lines.join('\n') }
