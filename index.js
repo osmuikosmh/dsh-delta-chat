@@ -1,4 +1,5 @@
 import { DeltaChatService } from './lib/service.js'
+import { formatTranscript } from './lib/persona.js'
 
 export const name = 'dsh-delta-chat'
 export const inject = ['tools', 'commands', 'agentDefaultModel', 'agents']
@@ -112,6 +113,29 @@ export function apply(ctx, rawConfig = {}) {
     }
   }
 
+  const promptTool = async (args = {}) => {
+    try {
+      const kind = args.kind === 'owner' ? 'owner' : 'friend'
+      const system = service.systemPromptFor(kind)
+      const style = service.prompts.style()
+      const lines = [
+        `子智能体类型：${kind === 'owner' ? '主人助理（完整工具）' : '朋友聊天（只读工具）'}`,
+        `风格文件：${service.prompts.paths().persona}（${style.length} 字）`,
+        '',
+        '【子智能体收到的系统提示词】',
+        system,
+      ]
+      if (args.chatId !== undefined && args.chatId !== null && args.chatId !== '') {
+        const chat = service.store.chat(Number(args.chatId))
+        const recent = formatTranscript(chat, service.memory.keep)
+        lines.push('', `【该会话的压缩记忆】${chat.longMemory || '（还没有压缩过记忆）'}`, '', '【该会话最近几条原文】', recent)
+      }
+      return { ok: true, text: lines.join('\n') }
+    } catch (error) {
+      return errorResult('读取提示词失败', error)
+    }
+  }
+
   disposers.push(ctx.tools.register({
     name: 'delta_chat_start',
     description:
@@ -149,6 +173,23 @@ export function apply(ctx, rawConfig = {}) {
     },
     output: { schema: OUTPUT_SCHEMA, render },
     execute: statusTool,
+    timeoutMs: 15_000,
+  }))
+
+  disposers.push(ctx.tools.register({
+    name: 'delta_chat_prompt',
+    description:
+      '查看“大肥鱼”聊天子智能体实际收到的系统提示词：风格文件 prompts/persona.md 与硬编码规则拼接后的全文，以及指定会话的压缩记忆和最近几条聊天。改完提示词想确认是否生效时用这个，比问模型可靠。',
+    parameters: {
+      type: 'object',
+      properties: {
+        kind: { type: 'string', enum: ['friend', 'owner'], description: '查看朋友聊天还是主人助理的提示词，默认 friend' },
+        chatId: { type: 'number', description: '可选：同时查看这个 Delta Chat 会话的记忆与最近聊天' },
+      },
+      additionalProperties: false,
+    },
+    output: { schema: OUTPUT_SCHEMA, render },
+    execute: promptTool,
     timeoutMs: 15_000,
   }))
 
