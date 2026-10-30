@@ -1,0 +1,41 @@
+  return merged.map((part) => part.slice(0, 2000))
+}
+
+/**
+ * Background Delta Chat friend. Owns the RPC server, the account lifecycle,
+ * the message loop, and the human-like reply timing.
+ */
+export class DeltaChatService {
+  constructor(ctx, config = {}, logger) {
+    this.ctx = ctx
+    this.config = { ...DEFAULT_CONFIG, ...config }
+    this.logger = logger
+    this.store = new ChatStore(this.config.dataDir)
+    // Style wording lives in prompts/persona.md; the structural rules stay
+    // hardcoded and are concatenated with the file at agent creation.
+    this.prompts = new PromptFiles({ dir: this.config.promptDir, logger })
+    this.owner = new OwnerAgentBridge(ctx, {
+      logger,
+      cwd: this.config.agentCwd || process.env.HOME || process.cwd(),
+      maxTokens: Number(this.config.agentMaxTokens) || 8000,
+      timeoutMs: Math.max(30, Number(this.config.agentTimeoutSeconds) || 600) * 1000,
+      systemPrompt: () => ownerSystemPrompt(this.prompts.style()),
+    })
+    /** One chat agent per Delta Chat conversation; disposed with the service. */
+    this.chatAgents = new Map()
+    /**
+     * Long-term memory: older messages get folded into `chat.longMemory`, so
+     * prompts stay short no matter how long a chat has been going.
+     */
+    this.memory = new MemoryKeeper({
+      ask: (prompt) => this.#memoryAsk(prompt),
+      logger,
+      cap: Number(this.config.memoryChars) || 3000,
+      keep: Number(this.config.transcriptLimit) || TRANSCRIPT_LIMIT,
+    })
+    this.memoryAgent = null
+    this.rpc = null
+    this.running = false
+    this.starting = null
+    this.abort = null
+    this.pollTask = null
