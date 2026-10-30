@@ -165,6 +165,40 @@ export function apply(ctx, rawConfig = {}) {
     timeoutMs: 30_000,
   }))
 
+  const archiveSessionsTool = async () => {
+    try {
+      const { candidates, archived } = await service.archiveSessions()
+      return {
+        ok: true,
+        text: candidates
+          ? `已把 ${archived} 个用完的临时会话从“未分组”收进归档（共检查 ${candidates} 个）。`
+          : '没有需要归档的会话。',
+      }
+    } catch (error) {
+      return errorResult('归档会话失败', error)
+    }
+  }
+
+  disposers.push(ctx.tools.register({
+    name: 'delta_chat_archive_sessions',
+    description: '把大肥鱼每次思考留下的临时会话从 DSH 的“未分组”列表里归档掉（正在用的会话会跳过）。',
+    parameters: {
+      type: 'object',
+      properties: {},
+      additionalProperties: false,
+    },
+    output: {
+      schema: {
+        type: 'object',
+        properties: { ok: { type: 'boolean' }, text: { type: 'string' } },
+        required: ['ok', 'text'],
+        additionalProperties: false,
+      },
+    },
+    execute: async () => archiveSessionsTool(),
+    timeoutMs: 60_000,
+  }))
+
   disposers.push(ctx.tools.register({
     name: 'delta_chat_status',
     description: '查看“大肥鱼” Delta Chat 服务的运行状态、账号地址、邀请链接、主人绑定码、聊天统计和最近错误。',
@@ -241,3 +275,5 @@ export function apply(ctx, rawConfig = {}) {
     return service.stop().catch(() => {})
   }, 'delta-chat:teardown')
 }
+
+// reload 1793363343
