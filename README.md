@@ -80,7 +80,7 @@ delta_chat_owner address=you@chatmail.cc
 delta_chat_owner clear=true
 ```
 
-主人私聊里发 `/unpair` 也能解绑。**绑定前请确认这个 Delta Chat 账号只有你自己能登录**——主人模式等于把 shell 交给这个账号，邀请链接不要随便发给别人。
+主人私聊里发 `/unpair` 也能解绑。主人的另一个号用 `/sync` 跟主人确认绑定后，那个号也按主人对待（同一个人，命令同样无条件执行）。**绑定前请确认这个 Delta Chat 账号只有你自己能登录**——主人模式等于把 shell 交给这个账号，邀请链接不要随便发给别人。
 
 ## 配置
 
