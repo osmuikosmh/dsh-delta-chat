@@ -14,7 +14,6 @@
     "cordis.patch.yml",
     "lib",
     "prompts",
-    "bin",
     "locale",
     "icon.svg",
     "README.md"
@@ -32,5 +31,13 @@
     "ai-assistant",
     "shell"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "optionalDependencies": {
+    "@deltachat/stdio-rpc-server-android-arm64": "^2.66.0",
+    "@deltachat/stdio-rpc-server-linux-x64": "^2.66.0",
+    "@deltachat/stdio-rpc-server-linux-arm64": "^2.66.0",
+    "@deltachat/stdio-rpc-server-darwin-x64": "^2.66.0",
+    "@deltachat/stdio-rpc-server-darwin-arm64": "^2.66.0",
+    "@deltachat/stdio-rpc-server-win32-x64": "^2.65.0"
+  }
 }

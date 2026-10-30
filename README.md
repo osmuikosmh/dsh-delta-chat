@@ -7,6 +7,8 @@
 - 首次 `delta_chat_start` 时自动向 chatmail 中转站申请一个新账号（随机地址 + 随机密码，密码只留在 Delta Chat 自己的数据库里）。
 - 生成一张邀请链接；朋友在 Delta Chat 里打开链接、完成加密握手后，就能和“大肥鱼”聊天。
 - 收到消息后先“读一下、想一下”，再按真人节奏分 1～4 条短消息回复；会接梗、会吐槽、会困、会摸鱼。
+- 消息一读到就回已读回执；如果它还在憋上一条的回复，你中间又发消息，它会先插一句“等下，我字还没打完”，再接着回。
+- 内核二进制不随插件走：按平台从 `@deltachat/stdio-rpc-server-*` 安装，真正跨平台。
 - 每条消息都交给后台子智能体处理：需要事实/时效信息时，它自己调用 `web_search` / `web_fetch`，不再靠提示词预判“要不要搜”，把结果自然融进聊天。
 - 动手前先自审：非主人的会话只开放联网搜索/抓网页，shell、文件读写、系统命令一律被硬性拦下。
 - 支持主动搭话：好友很久没说话时，偶尔发一条不刻意的消息（可关）。
@@ -82,7 +84,7 @@ delta_chat_owner clear=true
 | `displayName` | `大肥鱼` | Delta Chat 昵称，也会写进邀请链接 |
 | `selfStatus` | 一条住在服务器鱼缸里的胖鲸鱼，专业摸鱼 | Delta Chat 签名 |
 | `dataDir` | `$DSH_HOME/delta-chat` | 账号数据库、状态、日志目录；也可用 `DSH_DELTA_CHAT_DIR` |
-| `binary` | 包内 `bin/deltachat-rpc-server` | 自定义 Delta Chat RPC 内核 |
+| `binary` | 空 | 自定义 Delta Chat RPC 内核路径；留空则按平台用 npm 包里的二进制 |
 | `replyTimingScale` | `1` | 回复节奏倍率；测试时可调成 `0.05` |
 | `maxReplyDelaySeconds` | `90` | 单次“看到后隔多久回”的上限 |
 | `replyDebounceMs` | `1300` | 对方连发几条时，等多久合并回复 |
@@ -117,7 +119,8 @@ $DSH_HOME/delta-chat/
 
 - chatmail 账号是“首次登录自动创建”，但需要当前网络能连上某个 chatmail 中转站；连不上时 `delta_chat_start` 会报错并提示换网络。
 - Delta Chat 的端到端加密要求先通过邀请链接/securejoin 握手；直接给陌生地址发消息会报 `e2e encryption unavailable`，这是协议限制，不是插件 bug。
-- 插件自带的是 Android arm64 的 `deltachat-rpc-server`（Termux 环境）；换平台时用 `binary` 指向对应内核。
+- 插件源码不带任何二进制：`deltachat-rpc-server` 由 `@deltachat/stdio-rpc-server-<平台>-<架构>` 可选依赖按机器安装（linux/darwin/win32/android）。解析顺序是 `binary` 配置 → `DELTA_CHAT_RPC_SERVER` → 本地 `bin/` → 平台 npm 包 → PATH。缺失时报错会直接给出该装的包名。
+- 收到消息后会调 `markseen_msgs` 回报已读（对面能看到已读回执）。
 - 群聊只在被点名/被接话时回复。
 - 主人模式给的是完整 shell/文件权限（`danger-full-access`），命令不经过审核直接执行；请只绑定自己的账号，不要把邀请链接和绑定码外传。
 - 非主人会话运行在 `read-only` 沙箱里，工具面只留 `web_search` / `web_fetch`；即使模型想越界，`tools.guard` 也会拒绝并说明原因。
@@ -137,6 +140,7 @@ node --check lib/tool-policy.js
 node --check lib/agent-bridge.js
 node --check lib/owner.js
 node --check lib/service.js
+node --check lib/rpc-binary.js
 node test/smoke.mjs   # 提示词拼接 / JSON 解析 / 工具闸门
 ```
 
