@@ -7,9 +7,11 @@
 - 首次 `delta_chat_start` 时自动向 chatmail 中转站申请一个新账号（随机地址 + 随机密码，密码只留在 Delta Chat 自己的数据库里）。
 - 生成一张邀请链接；朋友在 Delta Chat 里打开链接、完成加密握手后，就能和“大肥鱼”聊天。
 - 收到消息后先“读一下、想一下”，再按真人节奏分 1～4 条短消息回复；会接梗、会吐槽、会困、会摸鱼。
-- 需要事实/时效信息时自己联网搜索，把结果自然融进聊天，不甩报告。
+- 每条消息都交给后台子智能体处理：需要事实/时效信息时，它自己调用 `web_search` / `web_fetch`，不再靠提示词预判“要不要搜”，把结果自然融进聊天。
+- 动手前先自审：非主人的会话只开放联网搜索/抓网页，shell、文件读写、系统命令一律被硬性拦下。
 - 支持主动搭话：好友很久没说话时，偶尔发一条不刻意的消息（可关）。
-- 聊天记录、长期印象、审计日志都在本地，不上传。
+- **主人模式**：绑定一个主人邮箱后，只有主人的私聊命令会**无条件执行**，可用完整 DSH 助理能力——`bash`、读写文件、执行命令、联网搜索，并把真实 shell 输出回给你；其他好友仍然只能普通聊天。
+- 聊天记录、账号状态、审计日志都在本地，不上传。
 
 ## 使用
 
@@ -44,6 +46,33 @@ delta_chat_stop
 delta_chat_status
 ```
 
+## 提示词与子智能体
+
+- 硬编码的系统提示词（身份框架、工具自审规则、JSON 输出契约）在 `lib/persona.js`。
+- 风格/人设提示词在 `prompts/persona.md`，改完下一条消息就生效（按文件 mtime 热加载），不用重启服务。
+- 实际发给模型的内容 = 硬编码系统提示词 + `prompts/persona.md` + 每条消息的用户提示词（聊天记录、对方印象、当前时间）。
+- 聊天由真正的 DSH 子智能体完成：每个 Delta Chat 会话一个，服务启动后按需创建，`delta_chat_stop` 时全部销毁。
+- 子智能体的工具面：朋友会话 `tools.restrict` 只留 `web_search` / `web_fetch`，再加一层 `tools.guard`（返回拒绝理由）兜底；主人会话不设限。
+
+## 主人模式（完整 DSH 能力）
+
+插件启动时如果还没有主人，会生成一个 6 位绑定码（`delta_chat_status` 可见）。用你自己的 Delta Chat 账号给大肥鱼发：
+
+```text
+/pair 123456
+```
+
+绑定成功后，你的私聊就会进入助理模式：可以叫它跑 `bash`、看目录、装东西、读写文件、搜网页，它会把真实结果回给你。其他好友仍然只是普通聊天，碰不到 shell。
+
+也可以在 DSH 里直接调用工具绑定/解绑：
+
+```text
+delta_chat_owner address=you@chatmail.cc
+delta_chat_owner clear=true
+```
+
+主人私聊里发 `/unpair` 也能解绑。**绑定前请确认这个 Delta Chat 账号只有你自己能登录**——主人模式等于把 shell 交给这个账号，邀请链接不要随便发给别人。
+
 ## 配置
 
 在 profile 的 `cordis.patch.yml` 里改 `dsh-delta-chat` 那一行的 `config`：
@@ -63,6 +92,11 @@ delta_chat_status
 | `proactiveCooldownHours` | `24` | 同一好友两次主动搭话的最短间隔 |
 | `quietStart` / `quietEnd` | `23` / `8` | 免打扰时段（本地时间） |
 | `maxBacklogHours` | `72` | 启动时超过这么久的历史消息只读不回 |
+| `ownerAddr` | 空 | 主人邮箱；留空则用绑定码配对。只有这个地址的私聊能无条件执行命令 |
+| `promptDir` | 包内 `prompts/` | 风格提示词目录；留空用自带 `prompts/persona.md` |
+| `agentCwd` | 空 | 主人模式下 DSH 助理的工作目录；空则用 `$HOME` |
+| `agentMaxTokens` | `8000` | 子智能体单次回复的 token 上限 |
+| `agentTimeoutSeconds` | `600` | 子智能体单次任务超时时间（主人/聊天共用） |
 
 ## 数据与隐私
 
@@ -77,7 +111,7 @@ $DSH_HOME/delta-chat/
 
 - 不保存邮箱密码；密码在 Delta Chat 自己的数据库里。
 - 审计日志只记消息摘要（每条最多 300 字），用于排查。
-- 搜索走 DSH 的 `ctx.web`；如果 provider 不可用，会退到 DuckDuckGo/Bing 的 HTML 结果页。
+- 搜索/抓网页由子智能体调用 DSH 的 `web_search` / `web_fetch` 工具完成，插件不直接发搜索请求。
 
 ## 已知边界
 
@@ -85,6 +119,10 @@ $DSH_HOME/delta-chat/
 - Delta Chat 的端到端加密要求先通过邀请链接/securejoin 握手；直接给陌生地址发消息会报 `e2e encryption unavailable`，这是协议限制，不是插件 bug。
 - 插件自带的是 Android arm64 的 `deltachat-rpc-server`（Termux 环境）；换平台时用 `binary` 指向对应内核。
 - 群聊只在被点名/被接话时回复。
+- 主人模式给的是完整 shell/文件权限（`danger-full-access`），命令不经过审核直接执行；请只绑定自己的账号，不要把邀请链接和绑定码外传。
+- 非主人会话运行在 `read-only` 沙箱里，工具面只留 `web_search` / `web_fetch`；即使模型想越界，`tools.guard` 也会拒绝并说明原因。
+- 聊天/主人模式都依赖 DSH 的 `agents` 服务和默认模型；如果 profile 没有可用模型，会报错或退回兜底短句。
+- 每个会话的子智能体在服务停止时销毁；重新启动后会按需新建（记忆靠 `state.json` 里的 `memory` 和聊天记录）。
 - “像真人”是角色扮演，不冒充真实存在的人；不承诺转账、见面、恋爱等现实关系。
 
 ## 开发
@@ -94,8 +132,12 @@ node --check index.js
 node --check lib/rpc.js
 node --check lib/store.js
 node --check lib/persona.js
-node --check lib/llm.js
+node --check lib/prompts.js
+node --check lib/tool-policy.js
+node --check lib/agent-bridge.js
+node --check lib/owner.js
 node --check lib/service.js
+node test/smoke.mjs   # 提示词拼接 / JSON 解析 / 工具闸门
 ```
 
 安装为 DSH bundle：
