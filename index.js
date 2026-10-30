@@ -65,7 +65,7 @@ export function apply(ctx, rawConfig = {}) {
         '非主人的命令会先自审、再被硬性拦下系统读写；服务停止时子智能体会全部销毁。',
         '风格提示词在 prompts/persona.md，改了不用重启服务。',
         '',
-        '接下来有人发消息，我会按真人节奏回；要停就发 delta_chat_stop。',
+        '接下来有人发消息我就回；要停就发 delta_chat_stop。',
       )
       value.text = lines.join('\n')
       return value
@@ -220,6 +220,36 @@ export function apply(ctx, rawConfig = {}) {
     output: { schema: OUTPUT_SCHEMA, render },
     execute: promptTool,
     timeoutMs: 15_000,
+  }))
+
+  disposers.push(ctx.tools.register({
+    name: 'delta_chat_send_file',
+    description:
+      '把本机上的一个图片/文件通过“大肥鱼”的 Delta Chat 账号发出去。默认发给最近一次给大肥鱼下指令的主人会话；也可以显式给 chatId。主人让大肥鱼发图、发文件时用这个。',
+    parameters: {
+      type: 'object',
+      properties: {
+        path: { type: 'string', description: '要发送的文件的绝对路径，例如 /sdcard/DCIM/cat.png' },
+        caption: { type: 'string', description: '可选的配文，会跟附件一起发' },
+        chatId: { type: 'number', description: '可选：目标 Delta Chat 会话 id；默认最近的主人会话' },
+      },
+      required: ['path'],
+      additionalProperties: false,
+    },
+    output: { schema: OUTPUT_SCHEMA, render },
+    execute: async (args = {}) => {
+      try {
+        const result = await service.sendFile(String(args.path || '').trim(), {
+          caption: args.caption,
+          chatId: args.chatId,
+        })
+        if (!result.messageId) return { ok: false, text: '文件没发出去，看审计日志里的 attachment.error' }
+        return { ok: true, text: `已把 ${args.path} 发到会话 ${result.chatId}` }
+      } catch (error) {
+        return { ok: false, text: `发送失败：${error?.message || error}`, error: String(error?.message || error) }
+      }
+    },
+    timeoutMs: 180_000,
   }))
 
   disposers.push(ctx.tools.register({
