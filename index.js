@@ -187,14 +187,7 @@ export function apply(ctx, rawConfig = {}) {
       properties: {},
       additionalProperties: false,
     },
-    output: {
-      schema: {
-        type: 'object',
-        properties: { ok: { type: 'boolean' }, text: { type: 'string' } },
-        required: ['ok', 'text'],
-        additionalProperties: false,
-      },
-    },
+    output: { schema: OUTPUT_SCHEMA, render },
     execute: async () => archiveSessionsTool(),
     timeoutMs: 60_000,
   }))
