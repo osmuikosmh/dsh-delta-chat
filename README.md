@@ -145,6 +145,7 @@ $DSH_HOME/delta-chat/
 - 主人模式给的是完整 shell/文件权限（`danger-full-access`），命令不经过审核直接执行；请只绑定自己的账号，不要把邀请链接和绑定码外传。
 - 非主人会话有自己的工作区 `$DSH_HOME/delta-chat/users/<邮箱>/`：工具面只留 `web_search` / `web_fetch` / `delta_chat_schedule` 和 `bash` / `read` / `write` / `edit` / `glob` / `grep`，其中所有路径都必须落在工作区内，`tools.guard` 会逐条校验并拒绝越界（`..`、软链接、`/etc`、`~`、`$HOME`）。
 - shell 不是白名单制：**能跑什么由大肥鱼自己判断**，插件只硬拦几类会让围栏失效的东西——解释器/脚本运行时（`sh`/`python`/`node`/`sed`/`awk`/`powershell`/`cmd` 这些能绕开路径检查的）、网络客户端（`curl`/`wget`/`ssh`/`pip`/`npm`/`openssl`/`socat` 等，联网走 `web_search`/`web_fetch`）、多合一工具箱（`busybox`/`toybox`）、设备与身份查询（`ip`/`ifconfig`/`getprop`/`hostname`/`uname`/`id`/`whoami`/`df`/`wmic`/`system_profiler` 等）、进程与挂载（`ps`/`kill`/`mount`/`su`）、裸打印环境变量（`env`/`printenv`/`set`），以及直接执行文件（`./x`、`/bin/x`、`C:\\x.exe`）。`git` 只允许工作区内的本地操作，联网子命令和 `--global` 会被拦。其余命令（`date`、`sort`、`find`、`tar`、`zip`、`jq`、`du`…）随便用。
+- 通配符由插件自己展开：命令里的未加引号 glob（`*.txt`、`inbox/*`）会用 `fs.globSync` 在工作区里展开，每一条匹配都要落在工作区内，否则整条命令拒绝；展开不到任何文件也拒绝（没法确认指向哪里）。`$变量`、`${...}`、`$'...'`、`~用户`、`%VAR%` 因为不能在不执行任何东西的前提下确定结果，直接拒绝；`$(...)` 和反引号会被拆成独立命令逐条校验。
 - 路径校验跨平台：`..`（`/` 或 `\` 分隔）、`~`、`$HOME`、`%USERPROFILE%`、POSIX 绝对路径、Windows 盘符（`C:\x`、`C:/x`）和 UNC（`\\host\share`）都会被判定，工作区外一律拒绝。
 - 这是**软隔离**：朋友会话固定使用 `danger-full-access` 加插件的确定性 guard（不依赖 OS 沙箱后端，因此在 Termux/Android、Linux、macOS、Windows 上行为一致）。guard 是确定性的字符串/路径校验，能挡住正常使用和提示词诱导，但挡不住刻意构造的 shell 绕过；不要把不可信的人加进来。
 - 朋友也会被提示词明确要求不要查 IP / MAC / 主机名 / 设备型号 / 序列号 / 账号等设备与网络身份信息；`/proc`、`/sys` 这类路径本来就在工作区外面，加上上面那几类命令的硬拦，日常使用里基本摸不到。
