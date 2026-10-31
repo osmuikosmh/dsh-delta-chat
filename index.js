@@ -170,10 +170,13 @@ export function apply(ctx, rawConfig = {}) {
         system,
       ]
       if (args.chatId !== undefined && args.chatId !== null && args.chatId !== '') {
-        const chat = service.store.chat(Number(args.chatId))
+        const raw = service.store.chat(Number(args.chatId))
+        const chat = service.chatView(raw)
+        const linked = chat !== raw
         const recent = formatTranscript(chat, service.memory.keep)
         lines.push('', `【此刻的心情】${service.moodText(chat)}`)
-        lines.push('', `【该会话的压缩记忆】${chat.longMemory || '（还没有压缩过记忆）'}`, '', '【该会话最近几条原文】', recent)
+        lines.push('', `【该会话的压缩记忆】${chat.longMemory || '（还没有压缩过记忆）'}`)
+        lines.push('', `【最近几条原文${linked ? '（已合并同步账号的记录）' : ''}】`, recent)
       }
       return { ok: true, text: lines.join('\n') }
     } catch (error) {
