@@ -423,8 +423,10 @@ export function apply(ctx, rawConfig = {}) {
   }, 'delta-chat:teardown')
 
   // ---- Web GUI settings page backing (see lib/client.js) ------------------
-  const webServer = typeof ctx.get === 'function' ? ctx.get('webServer') : null
-  if (webServer && typeof webServer.register === 'function') {
+  // webServer may come up after this plugin during boot; wait for it so the
+  // settings route exists on a fresh start, not only after a hot reload.
+  const registerSettingsApi = (webServer) => {
+    if (!webServer || typeof webServer.register !== 'function') return
     const readBody = (req, limit = 512 * 1024) => new Promise((resolve, reject) => {
       let size = 0
       const chunks = []
@@ -465,6 +467,7 @@ export function apply(ctx, rawConfig = {}) {
         return Number(code) || 403
       } catch { return 403 }
     }
+    service.store.audit('settings.route', { ts: Date.now() })
     disposers.push(webServer.register({
       kind: 'exact',
       path: '/dsh-delta-chat/api',
@@ -520,6 +523,18 @@ export function apply(ctx, rawConfig = {}) {
         }
       },
     }))
+  }
+
+  if (typeof ctx.inject === 'function') {
+    try {
+      ctx.inject(['webServer'], (webCtx) => {
+        registerSettingsApi(webCtx.webServer || webCtx.get('webServer'))
+      })
+    } catch (error) {
+      ctx.logger?.warn?.(`[delta-chat] settings api inject: ${error?.message || error}`)
+    }
+  } else {
+    registerSettingsApi(typeof ctx.get === 'function' ? ctx.get('webServer') : null)
   }
 
   // If the bot was running when DSH last shut down, bring it back up. This
