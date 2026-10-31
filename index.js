@@ -255,11 +255,11 @@ export function apply(ctx, rawConfig = {}) {
   disposers.push(ctx.tools.register({
     name: 'delta_chat_schedule',
     description:
-      '让“大肥鱼”自己过一会儿主动发一条消息（也可以每隔一段时间重复）。主人说「X 分钟后提醒我」「半小时后再跟我说」「每天九点叫我」时用它，不要自己写插件或开后台进程。文字是直接发出去的原文。',
+      '给“大肥鱼”自己定一个“到点醒来想想”的时刻：到点它才读当时的情况、自己想说什么，也可能决定不说。主人说「X 分钟后提醒我」「半小时后再跟我说」「每天九点叫我」时用它，不要自己写插件或开后台进程。',
     parameters: {
       type: 'object',
       properties: {
-        text: { type: 'string', description: '到时候要发出去的话，原样发送' },
+        text: { type: 'string', description: '由头：到点要让它想起什么、打算说什么（不是逐字发送，到点它会结合上下文重新组织，也可能觉得不合适就不说）' },
         afterSeconds: { type: 'number', description: '多少秒之后发' },
         atIso: { type: 'string', description: '绝对时间，ISO 格式，如 2026-10-31T09:00:00+08:00' },
         everySeconds: { type: 'number', description: '可选：每隔多少秒重复一次（至少 30）' },
@@ -285,7 +285,7 @@ export function apply(ctx, rawConfig = {}) {
         const when = new Date(result.at).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })
         return {
           ok: true,
-          text: `排好了（${result.id}）：${result.everyMs ? '每 ' + result.everyMs / 1000 + ' 秒' : when} 发到会话 ${result.chatId}：「${String(args.text).slice(0, 60)}」`,
+          text: `排好了（${result.id}）：${result.everyMs ? '每 ' + result.everyMs / 1000 + ' 秒' : when} 到会话 ${result.chatId} 醒来想想，由头是「${String(args.text).slice(0, 60)}」；到时候它自己决定说不说。`,
         }
       } catch (error) {
         return { ok: false, text: `没排上：${error?.message || error}`, error: String(error?.message || error) }
