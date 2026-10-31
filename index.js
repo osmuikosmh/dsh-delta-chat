@@ -418,8 +418,16 @@ export function apply(ctx, rawConfig = {}) {
     for (const dispose of disposers.reverse()) {
       try { dispose?.() } catch (error) { ctx.logger?.warn?.(`[delta-chat] dispose: ${error.message || error}`) }
     }
-    return service.stop().catch(() => {})
+    return service.stop({ explicit: false }).catch(() => {})
   }, 'delta-chat:teardown')
+
+  // If the bot was running when DSH last shut down, bring it back up. This
+  // also covers abnormal exits: resume() retries immediately, then every
+  // `retryEveryMinutes` up to `retryMax` times.
+  setTimeout(() => {
+    service.resume().catch((error) => ctx.logger?.warn?.(`[delta-chat] resume: ${error?.message || error}`))
+  }, 1200)
 }
 
 // reload 1793363343
+
