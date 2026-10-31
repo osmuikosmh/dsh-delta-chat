@@ -253,6 +253,87 @@ export function apply(ctx, rawConfig = {}) {
   }))
 
   disposers.push(ctx.tools.register({
+    name: 'delta_chat_schedule',
+    description:
+      '让“大肥鱼”自己过一会儿主动发一条消息（也可以每隔一段时间重复）。主人说「X 分钟后提醒我」「半小时后再跟我说」「每天九点叫我」时用它，不要自己写插件或开后台进程。文字是直接发出去的原文。',
+    parameters: {
+      type: 'object',
+      properties: {
+        text: { type: 'string', description: '到时候要发出去的话，原样发送' },
+        afterSeconds: { type: 'number', description: '多少秒之后发' },
+        atIso: { type: 'string', description: '绝对时间，ISO 格式，如 2026-10-31T09:00:00+08:00' },
+        everySeconds: { type: 'number', description: '可选：每隔多少秒重复一次（至少 30）' },
+        chatId: { type: 'number', description: '可选：发给哪个会话，默认当前正在说话的会话' },
+        note: { type: 'string', description: '可选：备注，方便以后辨认' },
+      },
+      required: ['text'],
+      additionalProperties: false,
+    },
+    output: { schema: OUTPUT_SCHEMA, render },
+    execute: async (args = {}) => {
+      try {
+        const at = args.atIso ? Date.parse(String(args.atIso)) : 0
+        if (args.atIso && !Number.isFinite(at)) throw new Error(`看不懂这个时间：${args.atIso}`)
+        const result = service.scheduleMessage({
+          text: args.text,
+          chatId: args.chatId,
+          at,
+          afterSeconds: Number(args.afterSeconds) || 0,
+          everySeconds: Number(args.everySeconds) || 0,
+          note: args.note,
+        })
+        const when = new Date(result.at).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })
+        return {
+          ok: true,
+          text: `排好了（${result.id}）：${result.everyMs ? '每 ' + result.everyMs / 1000 + ' 秒' : when} 发到会话 ${result.chatId}：「${String(args.text).slice(0, 60)}」`,
+        }
+      } catch (error) {
+        return { ok: false, text: `没排上：${error?.message || error}`, error: String(error?.message || error) }
+      }
+    },
+  }))
+
+  disposers.push(ctx.tools.register({
+    name: 'delta_chat_schedules',
+    description: '列出“大肥鱼”排着的定时消息（主人用）。',
+    parameters: { type: 'object', properties: {}, additionalProperties: false },
+    output: { schema: OUTPUT_SCHEMA, render },
+    execute: async () => {
+      try {
+        const jobs = service.listSchedules()
+        if (!jobs.length) return { ok: true, text: '现在没有排着的定时消息。' }
+        const lines = jobs.map((job) => {
+          const when = new Date(job.at).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })
+          return `${job.id} · ${job.everyMs ? `每 ${job.everyMs / 1000}s` : when} · 会话 ${job.chatId} · ${job.text}`
+        })
+        return { ok: true, text: lines.join('\n') }
+      } catch (error) {
+        return { ok: false, text: `列不出来：${error?.message || error}`, error: String(error?.message || error) }
+      }
+    },
+  }))
+
+  disposers.push(ctx.tools.register({
+    name: 'delta_chat_schedule_cancel',
+    description: '取消一条“大肥鱼”排着的定时消息（主人用），id 可以只给前缀。',
+    parameters: {
+      type: 'object',
+      properties: { id: { type: 'string', description: '定时消息 id，或它的前缀' } },
+      required: ['id'],
+      additionalProperties: false,
+    },
+    output: { schema: OUTPUT_SCHEMA, render },
+    execute: async (args = {}) => {
+      try {
+        const job = service.cancelSchedule(args.id)
+        return { ok: true, text: `取消了：${job.id}（会话 ${job.chatId}）` }
+      } catch (error) {
+        return { ok: false, text: `没取消成：${error?.message || error}`, error: String(error?.message || error) }
+      }
+    },
+  }))
+
+  disposers.push(ctx.tools.register({
     name: 'delta_chat_owner',
     description:
       '查看或设置“大肥鱼”的主人。只有主人账号发来的私聊会启用完整 DSH 助理模式，命令无条件执行（可调用 bash、读写文件、搜索等全部工具）；其他人只能普通聊天，子智能体会自己审核每一步、系统读写一律被拦截。传 address 绑定，传 clear 或空地址解绑。',
