@@ -449,12 +449,21 @@ export function apply(ctx, rawConfig = {}) {
     const forbidden = (req) => {
       try {
         const fence = typeof ctx.get === 'function' ? ctx.get('connection') : null
-        if (fence && typeof fence.requestRejection === 'function') {
-          const code = fence.requestRejection(req)
-          return code ? Number(code) || 403 : 0
-        }
+        if (!fence || typeof fence.requestRejection !== 'function') return 0
+        const code = fence.requestRejection(req)
+        if (!code) return 0
+        // A same-origin fetch from the GUI page carries the session cookie the
+        // page itself was authenticated with; the Host fence can still reject
+        // exotic access paths (reverse proxy, alternate hostname), so accept
+        // same-origin calls here instead of leaving the settings card blank.
+        if (String(req.headers?.['sec-fetch-site'] || '') === 'same-origin') return 0
+        service.store.audit('settings.api_reject', {
+          code: Number(code) || 403,
+          host: String(req.headers?.host || ''),
+          site: String(req.headers?.['sec-fetch-site'] || ''),
+        })
+        return Number(code) || 403
       } catch { return 403 }
-      return 0
     }
     disposers.push(webServer.register({
       kind: 'exact',
@@ -493,6 +502,7 @@ export function apply(ctx, rawConfig = {}) {
           }
           return reply(res, 405, { ok: false, error: 'method not allowed' })
         } catch (error) {
+          service.store.audit('settings.api_error', { message: String(error?.message || error) })
           return reply(res, 400, { ok: false, error: String(error?.message || error) })
         }
       },
