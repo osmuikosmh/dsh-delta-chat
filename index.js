@@ -471,7 +471,21 @@ export function apply(ctx, rawConfig = {}) {
       handler: async (req, res) => {
         if (forbidden(req)) return reply(res, 403, { ok: false, error: 'forbidden' })
         try {
+          const origin = new URL(req.url || '/dsh-delta-chat/api', 'http://x')
+          service.store.audit('settings.request', { method: req.method, search: origin.search.slice(0, 80) })
           if (req.method === 'GET') {
+            // GET-with-query saves: some proxies only let GET reach a plugin route.
+            const queryConfig = origin.searchParams.get('saveConfig')
+            const queryPersona = origin.searchParams.get('savePersona')
+            if (queryConfig !== null || queryPersona !== null) {
+              if (queryConfig !== null) {
+                saveUserConfig(config, sanitizeUserConfig(JSON.parse(queryConfig)))
+                Object.assign(config, loadConfig(rawConfig))
+                await service.applyConfig(config)
+              }
+              if (queryPersona !== null) savePersona(config, queryPersona)
+              return reply(res, 200, { ok: true, running: Boolean(service.status().running), snapshot: snapshot(config) })
+            }
             const snap = snapshot(config)
             const status = service.status()
             return reply(res, 200, {
@@ -492,7 +506,6 @@ export function apply(ctx, rawConfig = {}) {
             }
             if (typeof body?.persona === 'string') {
               savePersona(config, body.persona)
-              // PromptFiles re-reads on mtime change; nothing to restart.
             }
             return reply(res, 200, {
               ok: true,
