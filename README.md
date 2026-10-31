@@ -13,6 +13,7 @@
 - 动手前先自审：非主人的会话只开放联网搜索/抓网页，shell、文件读写、系统命令一律被硬性拦下。
 - 支持主动搭话：每 20 分钟醒来判断一次，挑最久没说话的那个会话看看要不要开口；主人和朋友用同一套判断，只是回复形式不同（可关）。
 - **小号记忆同步**：好友说「B 是我的小号，同步记忆」时，它不会直接信——先给 B 发一个 6 位确认码，B 回 `/sync 码` 确认后才把两个地址合成一个人：共用长期/短期记忆和最近聊天记录，之后跟谁聊都算同一个人。主人自己说这句话则直接同步，不用确认。发 `/unlink` 解开。
+- **思考中途也能说话**：一轮还没干完时想先回一句（报进度、回答插进来的问题），它调用 `delta_chat_say` 立刻发出，不用等整轮结束；最终回复再另外发，不重复。子智能体在等模型时收到的插话会以 `steer` 送进当前回合，下一次工具边界就能看到。
 - **自己排定时消息**：说「20 分钟后提醒我」「每天九点叫我」，它用内置的 `delta_chat_schedule` 排一个唤醒点（`afterSeconds` / `atIso` / `everySeconds`）。到点才读当时的聊天记录、自己决定说什么——也可能觉得这会儿不合适就不说，不会把排的时候那句话死板地念出来。`delta_chat_schedules` 查、`delta_chat_schedule_cancel` 撤。朋友会话也能用（只能排在自己会话里），不用再自己写定时插件。
 - **主动关心**：每 `careEveryMinutes` 分钟（默认 20）它自己醒来想一次「要不要说句话」，候选是所有非群聊里最久没说话的那个——主人和朋友走同一套逻辑、同一份「性格」配置。最近 `proactiveMinIdleMinutes`（默认 20）分钟内有过对话就不打扰，主动过一次之后 `proactiveCooldownHours`（默认 3）小时内不重复；它记得你说过「接下来几小时忙」就自己跳过。不分昼夜——作息因人而异，它只看聊天里的信号。
 - **同步邀请码**：嫌名字会重名，可以让它「给我一个同步码」（或直接发 `/sync`），它会回一个 6 位码（字母+数字、10 分钟、一次性）。把码发给对方，对方在聊天里发 `/sync 码` 就行——完全按地址认人，不靠昵称。
@@ -143,7 +144,7 @@ $DSH_HOME/delta-chat/
 - 收到消息后会调 `markseen_msgs` 回报已读（对面能看到已读回执）。
 - 群聊只在被点名/被接话时回复。
 - 主人模式给的是完整 shell/文件权限（`danger-full-access`），命令不经过审核直接执行；请只绑定自己的账号，不要把邀请链接和绑定码外传。
-- 非主人会话有自己的工作区 `$DSH_HOME/delta-chat/users/<邮箱>/`：工具面只留 `web_search` / `web_fetch` / `delta_chat_schedule` 和 `bash` / `read` / `write` / `edit` / `glob` / `grep`，其中所有路径都必须落在工作区内，`tools.guard` 会逐条校验并拒绝越界（`..`、软链接、`/etc`、`~`、`$HOME`）。
+- 非主人会话有自己的工作区 `$DSH_HOME/delta-chat/users/<邮箱>/`：工具面只留 `web_search` / `web_fetch` / `delta_chat_schedule` / `delta_chat_say` 和 `bash` / `read` / `read_image` / `write` / `edit` / `glob` / `grep`，其中所有路径都必须落在工作区内，`tools.guard` 会逐条校验并拒绝越界（`..`、软链接、`/etc`、`~`、`$HOME`）。
 - shell 不是白名单制：**能跑什么由大肥鱼自己判断**，插件只硬拦几类会让围栏失效的东西——解释器/脚本运行时（`sh`/`python`/`node`/`sed`/`awk`/`powershell`/`cmd` 这些能绕开路径检查的）、网络客户端（`curl`/`wget`/`ssh`/`pip`/`npm`/`openssl`/`socat` 等，联网走 `web_search`/`web_fetch`）、多合一工具箱（`busybox`/`toybox`）、设备与身份查询（`ip`/`ifconfig`/`getprop`/`hostname`/`uname`/`id`/`whoami`/`df`/`wmic`/`system_profiler` 等）、进程与挂载（`ps`/`kill`/`mount`/`su`）、裸打印环境变量（`env`/`printenv`/`set`），以及直接执行文件（`./x`、`/bin/x`、`C:\\x.exe`）。`git` 只允许工作区内的本地操作，联网子命令和 `--global` 会被拦。其余命令（`date`、`sort`、`find`、`tar`、`zip`、`jq`、`du`…）随便用。
 - 通配符由插件自己展开：命令里的未加引号 glob（`*.txt`、`inbox/*`）会用 `fs.globSync` 在工作区里展开，每一条匹配都要落在工作区内，否则整条命令拒绝；展开不到任何文件也拒绝（没法确认指向哪里）。`$变量`、`${...}`、`$'...'`、`~用户`、`%VAR%` 因为不能在不执行任何东西的前提下确定结果，直接拒绝；`$(...)` 和反引号会被拆成独立命令逐条校验。
 - 路径校验跨平台：`..`（`/` 或 `\` 分隔）、`~`、`$HOME`、`%USERPROFILE%`、POSIX 绝对路径、Windows 盘符（`C:\x`、`C:/x`）和 UNC（`\\host\share`）都会被判定，工作区外一律拒绝。

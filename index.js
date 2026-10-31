@@ -269,6 +269,33 @@ export function apply(ctx, rawConfig = {}) {
   }))
 
   disposers.push(ctx.tools.register({
+    name: 'delta_chat_say',
+    description:
+      '在一条回合还没结束时，先通过“大肥鱼”的 Delta Chat 账号发一句话（报进度、回答中途插话）。大肥鱼自己的聊天子智能体在干活途中想说话时就调它，消息立刻发出，不用等最终回复；最终回复照旧另外发。',
+    parameters: {
+      type: 'object',
+      properties: {
+        text: { type: 'string', description: '要立刻发出去的那句话' },
+        chatId: { type: 'number', description: '可选：发给哪个会话；聊天子智能体默认发给自己那个会话' },
+      },
+      required: ['text'],
+      additionalProperties: false,
+    },
+    output: { schema: OUTPUT_SCHEMA, render },
+    execute: async (args = {}, exec) => {
+      try {
+        const sessionId = exec?.agent?.session?.id || exec?.agent?.id || ''
+        const target = args.chatId !== undefined ? Number(args.chatId) : service.sayTargetFor(sessionId)
+        const result = await service.say(args.text, { chatId: target })
+        return { ok: true, text: `已经先发到会话 ${result.chatId}。` }
+      } catch (error) {
+        return { ok: false, text: `中途发言失败：${error?.message || error}`, error: String(error?.message || error) }
+      }
+    },
+    timeoutMs: 120_000,
+  }))
+
+  disposers.push(ctx.tools.register({
     name: 'delta_chat_send_file',
     description:
       '把本机上的一个图片/文件通过“大肥鱼”的 Delta Chat 账号发出去。默认发给最近一次给大肥鱼下指令的主人会话；也可以显式给 chatId。主人让大肥鱼发图、发文件时用这个。',
