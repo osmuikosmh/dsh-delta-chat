@@ -144,10 +144,11 @@ $DSH_HOME/delta-chat/
 - 群聊只在被点名/被接话时回复。
 - 主人模式给的是完整 shell/文件权限（`danger-full-access`），命令不经过审核直接执行；请只绑定自己的账号，不要把邀请链接和绑定码外传。
 - 非主人会话有自己的工作区 `$DSH_HOME/delta-chat/users/<邮箱>/`：工具面只留 `web_search` / `web_fetch` / `delta_chat_schedule` 和 `bash` / `read` / `write` / `edit` / `glob` / `grep`，其中所有路径都必须落在工作区内，`tools.guard` 会逐条校验并拒绝越界（`..`、软链接、`/etc`、`~`、`$HOME`）。
-- shell 不是白名单制：**能跑什么由大肥鱼自己判断**，插件只硬拦几类会让围栏失效的东西——解释器/脚本运行时（`sh`/`python`/`node`/`sed`/`awk` 这些，它们能绕开路径检查）、网络客户端（`curl`/`wget`/`ssh`/`pip`，联网走 `web_search`/`web_fetch`）、设备与身份查询（`ip`/`ifconfig`/`getprop`/`hostname`/`uname`/`termux-*`）、进程与挂载（`ps`/`kill`/`mount`/`su`），以及直接执行文件（`./x`、`/bin/x`）。其余命令（`date`、`sort`、`find`、`tar`、`jq`、`du`…）随便用。
-- 这是**软隔离**：Termux/Android 上 DSH 的 `workspace-write` 沙箱后端不可用，朋友会话实际是 `danger-full-access` 加插件的 guard。guard 是确定性的字符串/路径校验，能挡住正常使用和提示词诱导，但挡不住刻意构造的 shell 绕过；不要把不可信的人加进来。
+- shell 不是白名单制：**能跑什么由大肥鱼自己判断**，插件只硬拦几类会让围栏失效的东西——解释器/脚本运行时（`sh`/`python`/`node`/`sed`/`awk`/`powershell`/`cmd` 这些能绕开路径检查的）、网络客户端（`curl`/`wget`/`ssh`/`pip`/`npm`/`openssl`/`socat` 等，联网走 `web_search`/`web_fetch`）、多合一工具箱（`busybox`/`toybox`）、设备与身份查询（`ip`/`ifconfig`/`getprop`/`hostname`/`uname`/`id`/`whoami`/`df`/`wmic`/`system_profiler` 等）、进程与挂载（`ps`/`kill`/`mount`/`su`）、裸打印环境变量（`env`/`printenv`/`set`），以及直接执行文件（`./x`、`/bin/x`、`C:\\x.exe`）。`git` 只允许工作区内的本地操作，联网子命令和 `--global` 会被拦。其余命令（`date`、`sort`、`find`、`tar`、`zip`、`jq`、`du`…）随便用。
+- 路径校验跨平台：`..`（`/` 或 `\` 分隔）、`~`、`$HOME`、`%USERPROFILE%`、POSIX 绝对路径、Windows 盘符（`C:\x`、`C:/x`）和 UNC（`\\host\share`）都会被判定，工作区外一律拒绝。
+- 这是**软隔离**：朋友会话固定使用 `danger-full-access` 加插件的确定性 guard（不依赖 OS 沙箱后端，因此在 Termux/Android、Linux、macOS、Windows 上行为一致）。guard 是确定性的字符串/路径校验，能挡住正常使用和提示词诱导，但挡不住刻意构造的 shell 绕过；不要把不可信的人加进来。
 - 朋友也会被提示词明确要求不要查 IP / MAC / 主机名 / 设备型号 / 序列号 / 账号等设备与网络身份信息；`/proc`、`/sys` 这类路径本来就在工作区外面，加上上面那几类命令的硬拦，日常使用里基本摸不到。
-- 收发文件：对方发来的附件自动存到工作区的 `inbox/`；回复里写一行「`[附件] 相对路径 | 说明`」就能发（最多 3 个，单个 ≤ 50MB）；发文件夹会先 `zip -r` 打包再发。主人和朋友用的是同一套标记。
+- 收发文件：对方发来的附件自动存到工作区的 `inbox/`；回复里写一行「`[附件] 相对路径 | 说明`」就能发（最多 3 个，单个 ≤ 50MB）；发文件夹会依次尝试 `zip` → `7z` → `tar.gz` 打包再发（跨平台）。主人和朋友用的是同一套标记。
 - 聊天/主人模式都依赖 DSH 的 `agents` 服务和模型；如果 profile 没有可用模型，会报错或退回兜底短句。
 - 在哪个会话里调用 `delta_chat_start`，之后所有聊天子智能体就继承那个会话的工作区（`cwd`）、agent 预设和模型参数（provider / model / 思考强度）；换工作区或换模型时，重新调用一次 `delta_chat_start` 即可。
 - 每个会话的子智能体在服务停止时销毁；重新启动后会按需新建。长期记忆存在 `state.json`（`longMemory` / `memoryUpto`），不依赖子智能体会话。

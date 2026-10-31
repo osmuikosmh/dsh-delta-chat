@@ -184,7 +184,7 @@ export function apply(ctx, rawConfig = {}) {
   disposers.push(ctx.tools.register({
     name: 'delta_chat_start',
     description:
-      '启动“大肥鱼”的 Delta Chat 聊天服务：首次运行会自动申请一个 chatmail 账号，生成邀请链接，然后像真人一样在 Delta Chat 里和好友聊天。聊天由后台子智能体完成（每个会话一个，启动服务后按需创建、停止时销毁）：需要外界信息时它会自己调 web_search / web_fetch，不再靠提示词预判搜索。绑定主人后，主人的私聊命令无条件执行、可用完整 DSH 工具；其他人各自有一个工作区文件夹（`~/.dsh/delta-chat/users/<邮箱>/`），只能在里面读写文件、打包收发，shell 命令走白名单；越界和查设备信息会被拦下。启动可能需要 1～4 分钟，返回账号和邀请链接。',
+      '启动“大肥鱼”的 Delta Chat 聊天服务：首次运行会自动申请一个 chatmail 账号，生成邀请链接，然后像真人一样在 Delta Chat 里和好友聊天。聊天由后台子智能体完成（每个会话一个，启动服务后按需创建、停止时销毁）：需要外界信息时它会自己调 web_search / web_fetch，不再靠提示词预判搜索。绑定主人后，主人的私聊命令无条件执行、可用完整 DSH 工具；其他人各自有一个工作区文件夹（`~/.dsh/delta-chat/users/<邮箱>/`），只能在里面读写文件、打包收发，命令受黑名单约束（解释器/联网/download/设备信息/进程这类会被拦下），越界路径会被拒绝。启动可能需要 1～4 分钟，返回账号和邀请链接。',
     parameters: {
       type: 'object',
       properties: {},
