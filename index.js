@@ -1,4 +1,5 @@
 import { DeltaChatService } from './lib/service.js'
+import { loadConfig, sanitizeUserConfig, savePersona, saveUserConfig, snapshot, userConfigPath } from './lib/config-store.js'
 import { formatTranscript } from './lib/persona.js'
 
 export const name = 'dsh-delta-chat'
@@ -67,7 +68,7 @@ function startupSession(exec) {
 }
 
 export function apply(ctx, rawConfig = {}) {
-  const config = { ...rawConfig }
+  const config = loadConfig(rawConfig)
   const service = new DeltaChatService(ctx, config, ctx.logger)
   const disposers = []
 
@@ -420,6 +421,83 @@ export function apply(ctx, rawConfig = {}) {
     }
     return service.stop({ explicit: false }).catch(() => {})
   }, 'delta-chat:teardown')
+
+  // ---- Web GUI settings page backing (see lib/client.js) ------------------
+  const webServer = typeof ctx.get === 'function' ? ctx.get('webServer') : null
+  if (webServer && typeof webServer.register === 'function') {
+    const readBody = (req, limit = 512 * 1024) => new Promise((resolve, reject) => {
+      let size = 0
+      const chunks = []
+      req.on('data', (chunk) => {
+        size += chunk.length
+        if (size > limit) {
+          reject(new Error('请求体太大'))
+          req.destroy()
+          return
+        }
+        chunks.push(chunk)
+      })
+      req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
+      req.on('error', reject)
+    })
+    const reply = (res, code, value) => {
+      res.statusCode = code
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.setHeader('Cache-Control', 'no-store')
+      res.end(JSON.stringify(value))
+    }
+    const forbidden = (req) => {
+      try {
+        const fence = typeof ctx.get === 'function' ? ctx.get('connection') : null
+        if (fence && typeof fence.requestRejection === 'function') {
+          const code = fence.requestRejection(req)
+          return code ? Number(code) || 403 : 0
+        }
+      } catch { return 403 }
+      return 0
+    }
+    disposers.push(webServer.register({
+      kind: 'exact',
+      path: '/dsh-delta-chat/api',
+      handler: async (req, res) => {
+        if (forbidden(req)) return reply(res, 403, { ok: false, error: 'forbidden' })
+        try {
+          if (req.method === 'GET') {
+            const snap = snapshot(config)
+            const status = service.status()
+            return reply(res, 200, {
+              ok: true,
+              running: Boolean(status.running),
+              addr: status.addr || null,
+              snapshot: snap,
+              configFile: userConfigPath(config),
+            })
+          }
+          if (req.method === 'POST') {
+            const body = JSON.parse((await readBody(req)) || '{}')
+            const patch = body?.config && typeof body.config === 'object' ? sanitizeUserConfig(body.config) : null
+            if (patch && Object.keys(patch).length) {
+              saveUserConfig(config, patch)
+              Object.assign(config, loadConfig(rawConfig))
+              await service.applyConfig(config)
+            }
+            if (typeof body?.persona === 'string') {
+              savePersona(config, body.persona)
+              // PromptFiles re-reads on mtime change; nothing to restart.
+            }
+            return reply(res, 200, {
+              ok: true,
+              running: Boolean(service.status().running),
+              snapshot: snapshot(config),
+            })
+          }
+          return reply(res, 405, { ok: false, error: 'method not allowed' })
+        } catch (error) {
+          return reply(res, 400, { ok: false, error: String(error?.message || error) })
+        }
+      },
+    }))
+  }
 
   // If the bot was running when DSH last shut down, bring it back up. This
   // also covers abnormal exits: resume() retries immediately, then every

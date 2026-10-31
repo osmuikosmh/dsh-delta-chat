@@ -1,11 +1,14 @@
 {
   "name": "dsh-delta-chat",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "让 DSH 以“大肥鱼”的人设自动创建 Delta Chat 账号，像真人网友一样和好友聊天，并让主人通过私聊调用完整 DSH 工具：深度思考、联网搜索、shell、文件读写与真人口吻。",
   "type": "module",
   "main": "index.js",
   "exports": {
     ".": "./index.js",
+    "./client": {
+      "default": "./lib/client.js"
+    },
     "./locale/*.json": "./locale/*.json",
     "./icon": "./icon.svg"
   },
@@ -16,11 +19,18 @@
     "prompts",
     "locale",
     "icon.svg",
-    "README.md"
+    "README.md",
+    "config.json"
   ],
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-settings"
+      ]
     }
   },
   "keywords": [

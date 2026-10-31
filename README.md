@@ -60,7 +60,7 @@ delta_chat_status
 ## 提示词与子智能体
 
 - 硬编码的系统提示词（身份框架、工具自审规则、JSON 输出契约）在 `lib/persona.js`。
-- 风格/人设提示词在 `prompts/persona.md`，改完下一条消息就生效（按文件 mtime 热加载），不用重启服务。
+- 风格/人设提示词首次运行会从包内 `prompts/persona.md` 复制到 `~/.dsh/delta-chat/prompts/persona.md`，之后改的都是数据目录这份，升级插件不会覆盖；改完下一条消息就生效（按文件 mtime 热加载），不用重启服务。
 - 实际发给模型的内容 = 硬编码系统提示词 + `prompts/persona.md` + 每条消息的用户提示词（压缩记忆、对方印象、当前心情、最近 16 条、当前时间）。`.md` 改完下一条新消息就会用新版本（旧子智能体在下一次对话时自动换新）。
 - 想确认提示词到底有没有生效，直接调用 `delta_chat_prompt`（可带 `chatId`）：它会原样打印子智能体收到的系统提示词全文，以及该会话的压缩记忆和最近几条聊天。
 - 聊天由真正的 DSH 子智能体完成：每个 Delta Chat 会话一个，服务启动后按需创建，`delta_chat_stop` 时全部销毁。
@@ -107,7 +107,7 @@ delta_chat_owner clear=true
 | `memoryChars` | `3000` | 每个会话长期记忆（压缩后）的字数上限，约等于一个人几周内真正记住的内容 |
 | `transcriptLimit` | `16` | 提示词里保留多少条最近原文，更早的进压缩记忆 |
 | `ownerAddr` | 空 | 主人邮箱；留空则用绑定码配对。只有这个地址的私聊能无条件执行命令 |
-| `promptDir` | 包内 `prompts/` | 风格提示词目录；留空用自带 `prompts/persona.md` |
+| `promptDir` | `~/.dsh/delta-chat/prompts/` | 风格提示词目录；留空用数据目录那份（首次从包内复制） |
 | `agentCwd` | 空 | 主人模式下 DSH 助理的工作目录；空则用 `$HOME` |
 | `agentMaxTokens` | `8000` | 子智能体单次回复的 token 上限 |
 | `agentTimeoutSeconds` | `600` | 子智能体单次任务超时时间（主人/聊天共用） |
@@ -163,3 +163,22 @@ node test/smoke.mjs   # 提示词拼接 / JSON 解析 / 工具闸门
 ```text
 plugin_manager action=install_bundle target=/data/data/com.termux/files/home/dsh_ext
 ```
+
+## 配置与设置页
+
+配置分三层叠加，后一层覆盖前一层：
+
+1. 包内 `config.json`：随插件发布的默认值（`lib/defaults.js` 是代码里的兜底，两者保持一致）。
+2. profile patch 里的 `config`（一般不用动）。
+3. `~/.dsh/delta-chat/config.json`：只写你要改的键，没写的键自动跳过、继续沿用默认值。
+
+Web GUI 的「设置」里新增了一栏 **Delta Chat**：可以改昵称、主人邮箱、主动判断开关、重启自动恢复、回复间隔、记忆上限、重试次数等常用项，也能直接编辑 `persona.md` 并保存到 `~/.dsh/delta-chat/prompts/persona.md`。保存设置会自动重启服务让数值生效；保存提示词下一条消息生效。
+
+数据目录（默认 `~/.dsh/delta-chat/`）：
+
+| 文件 | 内容 |
+| --- | --- |
+| `config.json` | 用户覆盖配置（设置页写这里） |
+| `prompts/persona.md` | 可热改的风格提示词 |
+| `state.json` | 账号、联系人、记忆、心情、定时消息 |
+| `audit.jsonl` | 事件日志（排查用） |
