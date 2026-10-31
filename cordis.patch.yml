@@ -4,7 +4,6 @@
       config:
         displayName: 大肥鱼
         selfStatus: Delta Chat肥鱼聊天
-        ownerAddr: ""
         promptDir: ""
         agentCwd: ""
         agentMaxTokens: 8000

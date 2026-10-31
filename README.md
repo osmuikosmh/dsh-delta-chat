@@ -11,10 +11,10 @@
 - 内核二进制不随插件走：按平台从 `@deltachat/stdio-rpc-server-*` 安装，真正跨平台。
 - 每条消息都交给后台子智能体处理：需要事实/时效信息时，它自己调用 `web_search` / `web_fetch`，不再靠提示词预判“要不要搜”，把结果自然融进聊天。
 - 动手前先自审：非主人的会话只开放联网搜索/抓网页，shell、文件读写、系统命令一律被硬性拦下。
-- 支持主动搭话：每 20 分钟醒来判断一次，挑最久没说话的好友看看要不要开口；模型判断不合时机就不说（可关）。
+- 支持主动搭话：每 20 分钟醒来判断一次，挑最久没说话的那个会话看看要不要开口；主人和朋友用同一套判断，只是回复形式不同（可关）。
 - **小号记忆同步**：好友说「B 是我的小号，同步记忆」时，它不会直接信——先给 B 发一个 6 位确认码，B 回 `/sync 码` 确认后才把两个地址合成一个人：共用长期/短期记忆和最近聊天记录，之后跟谁聊都算同一个人。主人自己说这句话则直接同步，不用确认。发 `/unlink` 解开。
 - **自己排定时消息**：说「20 分钟后提醒我」「每天九点叫我」，它用内置的 `delta_chat_schedule` 排一个唤醒点（`afterSeconds` / `atIso` / `everySeconds`）。到点才读当时的聊天记录、自己决定说什么——也可能觉得这会儿不合适就不说，不会把排的时候那句话死板地念出来。`delta_chat_schedules` 查、`delta_chat_schedule_cancel` 撤。朋友会话也能用（只能排在自己会话里），不用再自己写定时插件。
-- **主动关心**：每 `careEveryMinutes` 分钟（默认 20）它自己醒来想一次「要不要跟主人说句话」，顺带也看最久没说话的好友。最近 15 分钟内有过对话就不打扰；它记得你说过「接下来几小时忙」就自己跳过。不分昼夜——作息因人而异，它只看聊天里的信号。
+- **主动关心**：每 `careEveryMinutes` 分钟（默认 20）它自己醒来想一次「要不要说句话」，候选是所有非群聊里最久没说话的那个——主人和朋友走同一套逻辑、同一份「性格」配置。最近 `proactiveMinIdleMinutes`（默认 20）分钟内有过对话就不打扰，主动过一次之后 `proactiveCooldownHours`（默认 3）小时内不重复；它记得你说过「接下来几小时忙」就自己跳过。不分昼夜——作息因人而异，它只看聊天里的信号。
 - **同步邀请码**：嫌名字会重名，可以让它「给我一个同步码」（或直接发 `/sync`），它会回一个 6 位码（字母+数字、10 分钟、一次性）。把码发给对方，对方在聊天里发 `/sync 码` 就行——完全按地址认人，不靠昵称。
 - **重启后自己回来**：DSH 关掉时它是在跑的，下次 DSH 一起来它就按上次状态自动上线（`autoResume`，默认开）。如果是异常关掉——内核崩了、进程被杀了——立刻重试一次，之后每 `retryEveryMinutes` 分钟重试一次，最多 `retryMax` 次（默认 30 分钟 × 8 次）。八次都起不来，它会尽力再用 Delta Chat 给每个好友发一条异常关闭的日志；连这个也发不出去就只留在 audit 里，不再无限重试。发 `/delta_chat_stop` 主动关掉的不会自动回来。
 - **主人模式**：绑定一个主人邮箱后，只有主人的私聊命令会**无条件执行**，可用完整 DSH 助理能力——`bash`、读写文件、执行命令、联网搜索，并把真实 shell 输出回给你；其他好友仍然只能普通聊天。
@@ -59,12 +59,14 @@ delta_chat_status
 
 ## 提示词与子智能体
 
-- 硬编码的系统提示词（身份框架、工具自审规则、JSON 输出契约）在 `lib/persona.js`。
+- 硬编码的系统提示词（身份框架、工具自审规则、纯文本输出契约）在 `lib/persona.js`。
 - 风格/人设提示词首次运行会从包内 `prompts/persona.md` 复制到 `~/.dsh/delta-chat/prompts/persona.md`，之后改的都是数据目录这份，升级插件不会覆盖；改完下一条消息就生效（按文件 mtime 热加载），不用重启服务。
 - 实际发给模型的内容 = 硬编码系统提示词 + `prompts/persona.md` + 每条消息的用户提示词（压缩记忆、对方印象、当前心情、最近 16 条、当前时间）。`.md` 改完下一条新消息就会用新版本（旧子智能体在下一次对话时自动换新）。
+- 主人和朋友共用一套纯文本输出契约：正文按空行分成几条消息；`[附件] 路径 | 说明` 发文件；`[记忆] 一句话` 更新印象；`[心情] 10～25 字` 更新心情；什么都不输出就是不回。解析在 `lib/persona.js` 的 `splitReply()`，三个标记行都不会发给对方。
 - 想确认提示词到底有没有生效，直接调用 `delta_chat_prompt`（可带 `chatId`）：它会原样打印子智能体收到的系统提示词全文，以及该会话的压缩记忆和最近几条聊天。
 - 聊天由真正的 DSH 子智能体完成：每个 Delta Chat 会话一个，服务启动后按需创建，`delta_chat_stop` 时全部销毁。
 - 每个子智能体只回答一次就换新会话（`sessionTurns=1`），上下文不会重复叠加；历史靠压缩记忆 + 最近 16 条承载，而不是把全部聊天记录反复塞进去。
+- 忙的时候再来一句，会直接插进正在生成的那一轮（`agent.steer()`，在下一个 step 边界被采纳），不会另起一轮、也不会先回一句“在听了”。插进去的这句如果那一轮最后没答上来（报错、超时、模型选择沉默），会自动重新排队，不会丢。
 - 子智能体的工具面：朋友会话 `tools.restrict` 只留 `web_search` / `web_fetch`，再加一层 `tools.guard`（返回拒绝理由）兜底；主人会话不设限。
 
 ## 主人模式（完整 DSH 能力）
@@ -84,6 +86,8 @@ delta_chat_owner address=you@chatmail.cc
 delta_chat_owner clear=true
 ```
 
+主人绑定只存一份：`~/.dsh/delta-chat/state.json` 里的 `ownerAddr`。设置页那一栏读写的就是这个值，留空保存=解绑并生成新的绑定码；配置文件里没有 `ownerAddr`，重启也不会把旧地址塞回来。
+
 主人私聊里发 `/unpair` 也能解绑。主人的另一个号用 `/sync` 跟主人确认绑定后，那个号也按主人对待（同一个人，命令同样无条件执行）。**绑定前请确认这个 Delta Chat 账号只有你自己能登录**——主人模式等于把 shell 交给这个账号，邀请链接不要随便发给别人。
 
 ## 配置
@@ -101,12 +105,12 @@ delta_chat_owner clear=true
 | `fallbackOnError` | `true` | 模型临时失败时，是否发一句很短的兜底话 |
 | `proactive` | `true` | 是否主动搭话 |
 | `proactiveMinIdleMinutes` | `20` | 多久没说话才考虑主动搭话 |
-| `proactiveCooldownHours` | `3` | 同一好友两次主动搭话的最短间隔 |
+| `proactiveCooldownHours` | `3` | 同一会话两次主动搭话的最短间隔 |
+| `careEveryMinutes` | `20` | 醒来判断「要不要说话」的间隔（主人和朋友共用） |
 | `quietStart` / `quietEnd` | 未设置 | 可选的免打扰时段（本地时间）；默认不分昼夜，由它按聊天上下文判断 |
 | `maxBacklogHours` | `72` | 启动时超过这么久的历史消息只读不回 |
 | `memoryChars` | `3000` | 每个会话长期记忆（压缩后）的字数上限，约等于一个人几周内真正记住的内容 |
 | `transcriptLimit` | `16` | 提示词里保留多少条最近原文，更早的进压缩记忆 |
-| `ownerAddr` | 空 | 主人邮箱；留空则用绑定码配对。只有这个地址的私聊能无条件执行命令 |
 | `promptDir` | `~/.dsh/delta-chat/prompts/` | 风格提示词目录；留空用数据目录那份（首次从包内复制） |
 | `agentCwd` | 空 | 主人模式下 DSH 助理的工作目录；空则用 `$HOME` |
 | `agentMaxTokens` | `8000` | 子智能体单次回复的 token 上限 |
@@ -120,7 +124,11 @@ delta_chat_owner clear=true
 $DSH_HOME/delta-chat/
 ├── state.json       # 账号地址、会话摘要、统计（600）
 ├── audit.jsonl      # 收发/搜索/错误审计（600）
-└── rpc/             # Delta Chat 账号数据库（内核管理）
+├── rpc/             # Delta Chat 账号数据库（内核管理）
+└── users/           # 每个聊天对象一个工作区文件夹（700）
+    └── <邮箱>/
+        ├── inbox/   # 对方发来的文件（files/ 与 media/）
+        └── outbox/  # TA 想发出去的东西，也可以自己建子目录
 ```
 
 - 不保存邮箱密码；密码在 Delta Chat 自己的数据库里。
@@ -135,7 +143,11 @@ $DSH_HOME/delta-chat/
 - 收到消息后会调 `markseen_msgs` 回报已读（对面能看到已读回执）。
 - 群聊只在被点名/被接话时回复。
 - 主人模式给的是完整 shell/文件权限（`danger-full-access`），命令不经过审核直接执行；请只绑定自己的账号，不要把邀请链接和绑定码外传。
-- 非主人会话运行在 `read-only` 沙箱里，工具面只留 `web_search` / `web_fetch`；即使模型想越界，`tools.guard` 也会拒绝并说明原因。
+- 非主人会话有自己的工作区 `$DSH_HOME/delta-chat/users/<邮箱>/`：工具面只留 `web_search` / `web_fetch` / `delta_chat_schedule` 和 `bash` / `read` / `write` / `edit` / `glob` / `grep`，其中所有路径都必须落在工作区内，`tools.guard` 会逐条校验并拒绝越界（`..`、软链接、`/etc`、`~`、`$HOME`）。
+- shell 不是白名单制：**能跑什么由大肥鱼自己判断**，插件只硬拦几类会让围栏失效的东西——解释器/脚本运行时（`sh`/`python`/`node`/`sed`/`awk` 这些，它们能绕开路径检查）、网络客户端（`curl`/`wget`/`ssh`/`pip`，联网走 `web_search`/`web_fetch`）、设备与身份查询（`ip`/`ifconfig`/`getprop`/`hostname`/`uname`/`termux-*`）、进程与挂载（`ps`/`kill`/`mount`/`su`），以及直接执行文件（`./x`、`/bin/x`）。其余命令（`date`、`sort`、`find`、`tar`、`jq`、`du`…）随便用。
+- 这是**软隔离**：Termux/Android 上 DSH 的 `workspace-write` 沙箱后端不可用，朋友会话实际是 `danger-full-access` 加插件的 guard。guard 是确定性的字符串/路径校验，能挡住正常使用和提示词诱导，但挡不住刻意构造的 shell 绕过；不要把不可信的人加进来。
+- 朋友也会被提示词明确要求不要查 IP / MAC / 主机名 / 设备型号 / 序列号 / 账号等设备与网络身份信息；`/proc`、`/sys` 这类路径本来就在工作区外面，加上上面那几类命令的硬拦，日常使用里基本摸不到。
+- 收发文件：对方发来的附件自动存到工作区的 `inbox/`；回复里写一行「`[附件] 相对路径 | 说明`」就能发（最多 3 个，单个 ≤ 50MB）；发文件夹会先 `zip -r` 打包再发。主人和朋友用的是同一套标记。
 - 聊天/主人模式都依赖 DSH 的 `agents` 服务和模型；如果 profile 没有可用模型，会报错或退回兜底短句。
 - 在哪个会话里调用 `delta_chat_start`，之后所有聊天子智能体就继承那个会话的工作区（`cwd`）、agent 预设和模型参数（provider / model / 思考强度）；换工作区或换模型时，重新调用一次 `delta_chat_start` 即可。
 - 每个会话的子智能体在服务停止时销毁；重新启动后会按需新建。长期记忆存在 `state.json`（`longMemory` / `memoryUpto`），不依赖子智能体会话。
@@ -155,7 +167,10 @@ node --check lib/owner.js
 node --check lib/service.js
 node --check lib/rpc-binary.js
 node --check lib/memory.js
-node test/smoke.mjs   # 提示词拼接 / JSON 解析 / 工具闸门
+node --check lib/workspace.js
+node --check lib/friend-sandbox.js
+node test/smoke.mjs   # 提示词拼接 / 回复解析 / 工作区与工具闸门
+node test/steer.mjs   # 忙时插话
 ```
 
 安装为 DSH bundle：

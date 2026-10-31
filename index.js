@@ -162,7 +162,7 @@ export function apply(ctx, rawConfig = {}) {
       const system = service.systemPromptFor(kind)
       const style = service.prompts.style()
       const lines = [
-        `子智能体类型：${kind === 'owner' ? '主人助理（完整工具）' : '朋友聊天（只读工具）'}`,
+        `子智能体类型：${kind === 'owner' ? '主人助理（完整工具）' : '朋友聊天（受限工具 + 独立工作区）'}`,
         `最近记录的心情：${service.store.state.mood?.text || '（还没有）'}`,
         `风格文件：${service.prompts.paths().persona}（${style.length} 字）`,
         '',
@@ -184,7 +184,7 @@ export function apply(ctx, rawConfig = {}) {
   disposers.push(ctx.tools.register({
     name: 'delta_chat_start',
     description:
-      '启动“大肥鱼”的 Delta Chat 聊天服务：首次运行会自动申请一个 chatmail 账号，生成邀请链接，然后像真人一样在 Delta Chat 里和好友聊天。聊天由后台子智能体完成（每个会话一个，启动服务后按需创建、停止时销毁）：需要外界信息时它会自己调 web_search / web_fetch，不再靠提示词预判搜索。绑定主人后，主人的私聊命令无条件执行、可用完整 DSH 工具；其他人只能联网查资料，系统命令和文件读写一律拦截。启动可能需要 1～4 分钟，返回账号和邀请链接。',
+      '启动“大肥鱼”的 Delta Chat 聊天服务：首次运行会自动申请一个 chatmail 账号，生成邀请链接，然后像真人一样在 Delta Chat 里和好友聊天。聊天由后台子智能体完成（每个会话一个，启动服务后按需创建、停止时销毁）：需要外界信息时它会自己调 web_search / web_fetch，不再靠提示词预判搜索。绑定主人后，主人的私聊命令无条件执行、可用完整 DSH 工具；其他人各自有一个工作区文件夹（`~/.dsh/delta-chat/users/<邮箱>/`），只能在里面读写文件、打包收发，shell 命令走白名单；越界和查设备信息会被拦下。启动可能需要 1～4 分钟，返回账号和邀请链接。',
     parameters: {
       type: 'object',
       properties: {},
@@ -482,12 +482,16 @@ export function apply(ctx, rawConfig = {}) {
             const queryPersona = origin.searchParams.get('savePersona')
             if (queryConfig !== null || queryPersona !== null) {
               if (queryConfig !== null) {
-                saveUserConfig(config, sanitizeUserConfig(JSON.parse(queryConfig)))
-                Object.assign(config, loadConfig(rawConfig))
-                await service.applyConfig(config)
+                await saveSettings(JSON.parse(queryConfig))
               }
               if (queryPersona !== null) savePersona(config, queryPersona)
-              return reply(res, 200, { ok: true, running: Boolean(service.status().running), snapshot: snapshot(config) })
+              const s = service.status()
+              return reply(res, 200, {
+                ok: true,
+                running: Boolean(s.running),
+                ownerAddr: s.ownerAddr || null,
+                snapshot: snapshot(config),
+              })
             }
             const snap = snapshot(config)
             const status = service.status()
@@ -495,24 +499,22 @@ export function apply(ctx, rawConfig = {}) {
               ok: true,
               running: Boolean(status.running),
               addr: status.addr || null,
+              ownerAddr: status.ownerAddr || null,
               snapshot: snap,
               configFile: userConfigPath(config),
             })
           }
           if (req.method === 'POST') {
             const body = JSON.parse((await readBody(req)) || '{}')
-            const patch = body?.config && typeof body.config === 'object' ? sanitizeUserConfig(body.config) : null
-            if (patch && Object.keys(patch).length) {
-              saveUserConfig(config, patch)
-              Object.assign(config, loadConfig(rawConfig))
-              await service.applyConfig(config)
-            }
+            const patch = body?.config && typeof body.config === 'object' ? body.config : null
+            const s = patch ? await saveSettings(patch) : service.status()
             if (typeof body?.persona === 'string') {
               savePersona(config, body.persona)
             }
             return reply(res, 200, {
               ok: true,
-              running: Boolean(service.status().running),
+              running: Boolean(s.running),
+              ownerAddr: s.ownerAddr || null,
               snapshot: snapshot(config),
             })
           }
@@ -523,6 +525,27 @@ export function apply(ctx, rawConfig = {}) {
         }
       },
     }))
+  }
+
+  /**
+   * The owner is stored in exactly one place: state.json (see
+   * DeltaChatService.setOwner). The settings page shows and edits that value
+   * directly, so `ownerAddr` is pulled out before the rest is written to the
+   * config file — config files never carry a second copy that could go stale.
+   */
+  const saveSettings = async (input) => {
+    const patch = sanitizeUserConfig(input || {})
+    const owner = typeof input?.ownerAddr === 'string' ? input.ownerAddr : undefined
+    if (owner !== undefined) {
+      const current = String(service.status().ownerAddr || '').trim().toLowerCase()
+      if (String(owner).trim().toLowerCase() !== current) service.setOwner(owner)
+    }
+    if (Object.keys(patch).length) {
+      saveUserConfig(config, patch)
+      Object.assign(config, loadConfig(rawConfig))
+      await service.applyConfig(config)
+    }
+    return service.status()
   }
 
   if (typeof ctx.inject === 'function') {
