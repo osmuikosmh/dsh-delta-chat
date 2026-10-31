@@ -35,20 +35,62 @@ function errorResult(prefix, error) {
   return { ok: false, text: `${prefix}：${message}`, error: message }
 }
 
+/**
+ * The session that starts the service decides how every chat agent runs:
+ * same working directory, same agent preset, same model + reasoning effort.
+ * `agent.options` only carries provider/model, so the effort is read from the
+ * session's most recent request header.
+ */
+function startupSession(exec) {
+  const agent = exec?.agent
+  const header = agent?.session?.header
+  if (!header) return null
+  const events = agent?.session?.eventsSnapshot || []
+  let selection = null
+  for (let i = events.length - 1; i >= 0; i -= 1) {
+    const event = events[i]
+    const config = event?.type === 'request/header' ? event?.data?.header?.config : null
+    if (config?.model) {
+      selection = {
+        ...(config.provider ? { provider: config.provider } : {}),
+        model: config.model,
+        ...(config.reasoningEffort ? { reasoningEffort: config.reasoningEffort } : {}),
+      }
+      break
+    }
+  }
+  return {
+    cwd: header.cwd || null,
+    agentPreset: header.agentPreset || null,
+    selection,
+  }
+}
+
 export function apply(ctx, rawConfig = {}) {
   const config = { ...rawConfig }
   const service = new DeltaChatService(ctx, config, ctx.logger)
   const disposers = []
 
-  const start = async () => {
+  const start = async (_args = {}, exec = {}) => {
     try {
-      const status = await service.start()
+      const session = startupSession(exec)
+      const status = await service.start({ session })
       const value = pickStatus(status)
       const lines = [
         '大肥鱼上线了，Delta Chat 服务已经跑起来。',
         `账号：${status.addr || '（刚创建，地址还没读到）'}`,
         `昵称：${status.displayName || '大肥鱼'}`,
       ]
+      if (status.session) {
+        const parts = []
+        if (status.session.cwd) parts.push(`工作区 ${status.session.cwd}`)
+        if (status.session.model) {
+          const effort = status.session.reasoningEffort ? `（${status.session.reasoningEffort}）` : ''
+          parts.push(`模型 ${status.session.model}${effort}`)
+        }
+        if (status.session.agentPreset) parts.push(`预设 ${status.session.agentPreset}`)
+        if (parts.length) lines.push(`继承自启动会话：${parts.join(' · ')}`)
+      }
       if (status.invite) {
         lines.push('', '邀请链接（发给朋友，对方在 Delta Chat 里打开就能加你）：', status.invite)
       }

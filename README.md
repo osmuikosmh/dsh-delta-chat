@@ -135,7 +135,8 @@ $DSH_HOME/delta-chat/
 - 群聊只在被点名/被接话时回复。
 - 主人模式给的是完整 shell/文件权限（`danger-full-access`），命令不经过审核直接执行；请只绑定自己的账号，不要把邀请链接和绑定码外传。
 - 非主人会话运行在 `read-only` 沙箱里，工具面只留 `web_search` / `web_fetch`；即使模型想越界，`tools.guard` 也会拒绝并说明原因。
-- 聊天/主人模式都依赖 DSH 的 `agents` 服务和默认模型；如果 profile 没有可用模型，会报错或退回兜底短句。
+- 聊天/主人模式都依赖 DSH 的 `agents` 服务和模型；如果 profile 没有可用模型，会报错或退回兜底短句。
+- 在哪个会话里调用 `delta_chat_start`，之后所有聊天子智能体就继承那个会话的工作区（`cwd`）、agent 预设和模型参数（provider / model / 思考强度）；换工作区或换模型时，重新调用一次 `delta_chat_start` 即可。
 - 每个会话的子智能体在服务停止时销毁；重新启动后会按需新建。长期记忆存在 `state.json`（`longMemory` / `memoryUpto`），不依赖子智能体会话。
 - “像真人”是角色扮演，不冒充真实存在的人；不承诺转账、见面、恋爱等现实关系。
 
