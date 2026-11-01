@@ -521,6 +521,7 @@ export function apply(ctx, rawConfig = {}) {
                 running: Boolean(s.running),
                 ownerAddr: s.ownerAddr || null,
                 snapshot: snapshot(config),
+                status: service.statusText(),
               })
             }
             const snap = snapshot(config)
@@ -532,6 +533,7 @@ export function apply(ctx, rawConfig = {}) {
               ownerAddr: status.ownerAddr || null,
               snapshot: snap,
               configFile: userConfigPath(config),
+              status: service.statusText(),
             })
           }
           if (req.method === 'POST') {
@@ -546,6 +548,7 @@ export function apply(ctx, rawConfig = {}) {
               running: Boolean(s.running),
               ownerAddr: s.ownerAddr || null,
               snapshot: snapshot(config),
+              status: service.statusText(),
             })
           }
           return reply(res, 405, { ok: false, error: 'method not allowed' })
