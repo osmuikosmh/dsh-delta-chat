@@ -240,6 +240,18 @@ export function apply(ctx, rawConfig = {}) {
   }))
 
   disposers.push(ctx.tools.register({
+    name: 'delta_chat_workspaces',
+    description: '调试：查看本次运行各子智能体会话在工作区注册表里的归属情况。',
+    parameters: { type: 'object', properties: {}, additionalProperties: false },
+    output: { schema: OUTPUT_SCHEMA, render },
+    execute: async () => {
+      const report = service.workspaceReport()
+      return { ok: true, text: JSON.stringify(report, null, 2) }
+    },
+    timeoutMs: 15_000,
+  }))
+
+  disposers.push(ctx.tools.register({
     name: 'delta_chat_status',
     description: '查看“大肥鱼” Delta Chat 服务的运行状态、账号地址、邀请链接、主人绑定码、聊天统计和最近错误。',
     parameters: {
