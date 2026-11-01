@@ -82,10 +82,10 @@ export function apply(ctx, rawConfig = {}) {
         `账号：${status.addr || '（刚创建，地址还没读到）'}`,
         `昵称：${status.displayName || '大肥鱼'}`,
       ]
+      const workspace = status.workspace || status.session?.cwd
+      if (workspace) lines.push(`工作区：${workspace}（主人会话固定在这里）`)
       if (status.session) {
         const parts = []
-        const workspace = status.workspace || status.session.cwd
-        if (workspace) parts.push(`工作区 ${workspace}`)
         if (status.session.model) {
           const effort = status.session.reasoningEffort ? `（${status.session.reasoningEffort}）` : ''
           parts.push(`模型 ${status.session.model}${effort}`)
