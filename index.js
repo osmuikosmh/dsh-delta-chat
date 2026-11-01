@@ -84,7 +84,8 @@ export function apply(ctx, rawConfig = {}) {
       ]
       if (status.session) {
         const parts = []
-        if (status.session.cwd) parts.push(`工作区 ${status.session.cwd}`)
+        const workspace = status.workspace || status.session.cwd
+        if (workspace) parts.push(`工作区 ${workspace}`)
         if (status.session.model) {
           const effort = status.session.reasoningEffort ? `（${status.session.reasoningEffort}）` : ''
           parts.push(`模型 ${status.session.model}${effort}`)
