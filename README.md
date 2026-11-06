@@ -114,6 +114,7 @@ delta_chat_owner clear=true
 | `memoryChars` | `3000` | 每个会话长期记忆（压缩后）的字数上限，约等于一个人几周内真正记住的内容 |
 | `transcriptLimit` | `16` | 提示词里保留多少条最近原文，更早的进压缩记忆 |
 | `sessionTurns` | `20` | 子智能体用满多少轮后换新会话；`0` 表示永不轮换（5 天不关服务也只用一个会话） |
+| `seenPingSeconds` | `600` | 每隔多少秒给每个好友最后一条消息发一个空表情回执，让对方的「最后上线」保持新鲜；`0` 关闭。每次启动重新计时 |
 | `promptDir` | `~/.dsh/delta-chat/prompts/` | 风格提示词目录；留空用数据目录那份（首次从包内复制） |
 | `agentCwd` | 空 | 主人模式下 DSH 助理的工作目录；空则用 `$HOME` |
 | `agentMaxTokens` | `8000` | 子智能体单次回复的 token 上限 |
