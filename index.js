@@ -280,7 +280,7 @@ export function apply(ctx, rawConfig = {}) {
   disposers.push(ctx.tools.register({
     name: 'delta_chat_rpc',
     description:
-      '直接调用 Delta Chat 内核的 JSON-RPC 方法（插件没封装的能力从这里走）。参数 method 是内核方法名（如 get_contact、send_reaction），params 是参数数组。仅主人可用。',
+      '直接调用 Delta Chat 内核的 JSON-RPC 方法（插件没封装的能力从这里走）。参数 method 是内核方法名（如 get_contact、send_reaction），params 是参数数组。主人可调全部方法；朋友只放行 get_/list_/check_/lookup_ 开头的只读查询。',
     parameters: {
       type: 'object',
       properties: {
