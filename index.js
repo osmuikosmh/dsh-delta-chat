@@ -145,6 +145,19 @@ export function apply(ctx, rawConfig = {}) {
     }
   }
 
+  const rpcTool = async (args = {}) => {
+    try {
+      const method = String(args.method || '').trim()
+      if (!method) return errorResult('缺少 method')
+      const params = Array.isArray(args.params) ? args.params : []
+      const result = await service.rpcRequest(method, params)
+      const text = JSON.stringify(result === undefined ? null : result)
+      return { ok: true, text: text.length > 20_000 ? `${text.slice(0, 20_000)}\n…（已截断）` : text }
+    } catch (error) {
+      return errorResult(`调用 ${args.method} 失败`, error)
+    }
+  }
+
   const ownerTool = async (args = {}) => {
     try {
       const address = typeof args.address === 'string' ? args.address : ''
@@ -262,6 +275,24 @@ export function apply(ctx, rawConfig = {}) {
     output: { schema: OUTPUT_SCHEMA, render },
     execute: statusTool,
     timeoutMs: 15_000,
+  }))
+
+  disposers.push(ctx.tools.register({
+    name: 'delta_chat_rpc',
+    description:
+      '直接调用 Delta Chat 内核的 JSON-RPC 方法（插件没封装的能力从这里走）。参数 method 是内核方法名（如 get_contact、send_reaction），params 是参数数组。仅主人可用。',
+    parameters: {
+      type: 'object',
+      properties: {
+        method: { type: 'string', description: 'Delta Chat core JSON-RPC 方法名，例如 get_config、get_contacts' },
+        params: { type: 'array', description: '按内核签名顺序的参数数组；没有参数就省略', items: {} },
+      },
+      required: ['method'],
+      additionalProperties: false,
+    },
+    output: { schema: OUTPUT_SCHEMA, render },
+    execute: rpcTool,
+    timeoutMs: 130_000,
   }))
 
   disposers.push(ctx.tools.register({
