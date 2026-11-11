@@ -145,12 +145,18 @@ export function apply(ctx, rawConfig = {}) {
     }
   }
 
-  const rpcTool = async (args = {}) => {
+  const rpcTool = async (args = {}, exec) => {
     try {
       const method = String(args.method || '').trim()
       if (!method) return errorResult('缺少 method')
       const params = Array.isArray(args.params) ? args.params : []
-      const result = await service.rpcRequest(method, params)
+      // Which conversation asked: friends may only touch their own data.
+      const sessionId = exec?.agent?.session?.id || exec?.agent?.id
+      const target = sessionId ? service.sayTargetFor(sessionId) : null
+      const scope = target === 'owner' || target === undefined || target === null
+        ? { owner: target === 'owner' }
+        : { owner: false, chatId: Number(target) }
+      const result = await service.rpcRequest(method, params, scope)
       const text = JSON.stringify(result === undefined ? null : result)
       return { ok: true, text: text.length > 20_000 ? `${text.slice(0, 20_000)}\n…（已截断）` : text }
     } catch (error) {
@@ -280,7 +286,7 @@ export function apply(ctx, rawConfig = {}) {
   disposers.push(ctx.tools.register({
     name: 'delta_chat_rpc',
     description:
-      '直接调用 Delta Chat 内核的 JSON-RPC 方法（插件没封装的能力从这里走）。参数 method 是内核方法名（如 get_contact、send_reaction），params 是参数数组。主人可调全部方法；朋友只放行 get_/list_/check_/lookup_ 开头的只读查询。',
+      '直接调用 Delta Chat 内核的 JSON-RPC 方法（插件没封装的能力从这里走）。参数 method 是内核方法名（如 get_contact、send_reaction），params 是参数数组。主人可调全部方法；朋友的调用会被限制在自己的会话/联系人范围内，只读查询不限。',
     parameters: {
       type: 'object',
       properties: {
