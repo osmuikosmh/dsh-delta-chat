@@ -153,8 +153,10 @@ export function apply(ctx, rawConfig = {}) {
       // Which conversation asked: friends may only touch their own data.
       const sessionId = exec?.agent?.session?.id || exec?.agent?.id
       const target = sessionId ? service.sayTargetFor(sessionId) : null
-      const scope = target === 'owner' || target === undefined || target === null
-        ? { owner: target === 'owner' }
+      // Only friend agents are registered here; anything else (the owner's
+      // agent, or DSH itself calling the tool) is trusted.
+      const scope = target === undefined || target === null || target === 'owner'
+        ? { owner: true }
         : { owner: false, chatId: Number(target) }
       const result = await service.rpcRequest(method, params, scope)
       const text = JSON.stringify(result === undefined ? null : result)
