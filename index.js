@@ -590,6 +590,24 @@ export function apply(ctx, rawConfig = {}) {
           }
           if (req.method === 'POST') {
             const body = JSON.parse((await readBody(req)) || '{}')
+            const action = String(body?.action || '')
+            if (action === 'start' || action === 'stop') {
+              try {
+                const s = action === 'start'
+                  ? await service.start({ session: service.session || null })
+                  : await service.stop()
+                service.store.audit('settings.action', { action })
+                return reply(res, 200, {
+                  ok: true,
+                  running: Boolean(s.running),
+                  ownerAddr: s.ownerAddr || null,
+                  snapshot: snapshot(config),
+                  status: service.statusText(),
+                })
+              } catch (error) {
+                return reply(res, 200, { ok: false, error: String(error?.message || error) })
+              }
+            }
             const patch = body?.config && typeof body.config === 'object' ? body.config : null
             const s = patch ? await saveSettings(patch) : service.status()
             if (typeof body?.persona === 'string') {
