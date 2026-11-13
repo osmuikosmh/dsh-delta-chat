@@ -549,6 +549,17 @@ export function apply(ctx, rawConfig = {}) {
         return Number(code) || 403
       } catch { return 403 }
     }
+    const selectionOf = () => {
+      const current = service.pickedSelection?.() || null
+      if (current) return current
+      try {
+        const defaults = ctx.get?.('agentDefaultModel')
+        const sel = defaults?.currentSelection?.()
+        if (sel?.provider) return { provider: sel.provider, model: sel.model, ...(sel.reasoningEffort ? { reasoningEffort: sel.reasoningEffort } : {}) }
+      } catch {}
+      return { provider: 'deepseek-account', model: 'deepseek-flash', reasoningEffort: 'high' }
+    }
+
     service.store.audit('settings.route', { ts: Date.now() })
     disposers.push(webServer.register({
       kind: 'exact',
@@ -583,6 +594,7 @@ export function apply(ctx, rawConfig = {}) {
               running: Boolean(status.running),
               addr: status.addr || null,
               ownerAddr: status.ownerAddr || null,
+              model: selectionOf(),
               snapshot: snap,
               configFile: userConfigPath(config),
               status: service.statusText(),
@@ -601,6 +613,29 @@ export function apply(ctx, rawConfig = {}) {
                   ok: true,
                   running: Boolean(s.running),
                   ownerAddr: s.ownerAddr || null,
+                  snapshot: snapshot(config),
+                  status: service.statusText(),
+                })
+              } catch (error) {
+                return reply(res, 200, { ok: false, error: String(error?.message || error) })
+              }
+            }
+            if (body?.model && typeof body.model === 'object') {
+              try {
+                await service.setSelection(body.model)
+                saveUserConfig(config, {
+                  provider: String(body.model.provider || ''),
+                  model: String(body.model.model || ''),
+                  reasoningEffort: String(body.model.reasoningEffort || ''),
+                })
+                Object.assign(config, loadConfig(rawConfig))
+                service.store.audit('settings.model', { model: String(body.model.model || '') })
+                const s = service.status()
+                return reply(res, 200, {
+                  ok: true,
+                  running: Boolean(s.running),
+                  ownerAddr: s.ownerAddr || null,
+                  model: selectionOf(),
                   snapshot: snapshot(config),
                   status: service.statusText(),
                 })
