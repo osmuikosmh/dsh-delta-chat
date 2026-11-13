@@ -1,5 +1,5 @@
 import { DeltaChatService } from './lib/service.js'
-import { loadConfig, sanitizeUserConfig, savePersona, saveUserConfig, snapshot, userConfigPath } from './lib/config-store.js'
+import { loadConfig, sanitizeUserConfig, saveLimits, savePersona, saveUserConfig, snapshot, userConfigPath } from './lib/config-store.js'
 import { formatTranscript } from './lib/persona.js'
 
 export const name = 'dsh-delta-chat'
@@ -573,11 +573,13 @@ export function apply(ctx, rawConfig = {}) {
             // GET-with-query saves: some proxies only let GET reach a plugin route.
             const queryConfig = origin.searchParams.get('saveConfig')
             const queryPersona = origin.searchParams.get('savePersona')
-            if (queryConfig !== null || queryPersona !== null) {
+            const queryLimits = origin.searchParams.get('saveLimits')
+            if (queryConfig !== null || queryPersona !== null || queryLimits !== null) {
               if (queryConfig !== null) {
                 await saveSettings(JSON.parse(queryConfig))
               }
               if (queryPersona !== null) savePersona(config, queryPersona)
+              if (queryLimits !== null) saveLimits(config, queryLimits)
               const s = service.status()
               return reply(res, 200, {
                 ok: true,
@@ -649,6 +651,9 @@ export function apply(ctx, rawConfig = {}) {
             const s = patch ? await saveSettings(patch) : service.status()
             if (typeof body?.persona === 'string') {
               savePersona(config, body.persona)
+            }
+            if (typeof body?.limits === 'string') {
+              saveLimits(config, body.limits)
             }
             return reply(res, 200, {
               ok: true,
