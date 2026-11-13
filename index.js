@@ -88,8 +88,9 @@ export function apply(ctx, rawConfig = {}) {
       if (status.invite) {
         lines.push('', '邀请链接（发给朋友，对方在 Delta Chat 里打开就能加你）：', status.invite)
       }
-      if (status.ownerAddr) {
-        lines.push('', `主人：${status.ownerAddr}（主人私聊可调用全部 DSH 工具，命令无条件执行）`)
+      if (status.ownerAddr || status.ownerFingerprint) {
+        const who = status.ownerFingerprint ? `指纹 ${status.ownerFingerprint}` : String(status.ownerAddr || '')
+        lines.push('', `主人：${who}${status.ownerAddr && status.ownerFingerprint ? `（地址 ${status.ownerAddr}）` : ''}（主人私聊可调用全部 DSH 工具，命令无条件执行）`)
       } else {
         lines.push('', '主人还没绑定，所有人目前只能普通聊天（可以自己联网搜索，不能碰系统命令和文件）。')
         if (status.pairCode) lines.push(`用主人的 Delta Chat 账号发 /pair ${status.pairCode} 即可绑定。`)
