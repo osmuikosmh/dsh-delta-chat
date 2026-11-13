@@ -595,6 +595,7 @@ export function apply(ctx, rawConfig = {}) {
               addr: status.addr || null,
               ownerAddr: status.ownerAddr || null,
               model: selectionOf(),
+              catalog: await service.modelCatalog(),
               snapshot: snap,
               configFile: userConfigPath(config),
               status: service.statusText(),
@@ -636,6 +637,7 @@ export function apply(ctx, rawConfig = {}) {
                   running: Boolean(s.running),
                   ownerAddr: s.ownerAddr || null,
                   model: selectionOf(),
+                  catalog: await service.modelCatalog(),
                   snapshot: snapshot(config),
                   status: service.statusText(),
                 })
