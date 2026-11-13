@@ -161,7 +161,10 @@ export function apply(ctx, rawConfig = {}) {
   const ownerTool = async (args = {}) => {
     try {
       const address = typeof args.address === 'string' ? args.address : ''
-      const status = service.setOwner(address, Boolean(args.clear))
+      const fingerprint = typeof args.fingerprint === 'string' ? args.fingerprint : ''
+      const status = fingerprint
+        ? service.setOwnerFingerprint(fingerprint)
+        : service.setOwner(address, Boolean(args.clear))
       const value = pickStatus(status)
       value.text = service.statusText()
       return value
@@ -453,11 +456,12 @@ export function apply(ctx, rawConfig = {}) {
   disposers.push(ctx.tools.register({
     name: 'delta_chat_owner',
     description:
-      '查看或设置“大肥鱼”的主人。只有主人账号发来的私聊会启用完整 DSH 助理模式，命令无条件执行（可调用 bash、读写文件、搜索等全部工具）；其他人只能普通聊天，子智能体会自己审核每一步、系统读写一律被拦截。传 address 绑定，传 clear 或空地址解绑。',
+      '查看或设置“大肥鱼”的主人（地址或公钥指纹均可）。只有主人账号发来的私聊会启用完整 DSH 助理模式，命令无条件执行（可调用 bash、读写文件、搜索等全部工具）；其他人只能普通聊天，子智能体会自己审核每一步、系统读写一律被拦截。传 address 绑定，传 clear 或空地址解绑。',
     parameters: {
       type: 'object',
       properties: {
         address: { type: 'string', description: '主人的 Delta Chat 邮箱地址，例如 someone@chatmail.cc；留空表示解绑' },
+        fingerprint: { type: 'string', description: '主人的 Autocrypt 公钥指纹（40 位十六进制，可用空格分组）；填了它就按指纹绑定，地址会从已知联系人里自动补齐' },
         clear: { type: 'boolean', description: '设为 true 解绑当前主人' },
       },
       additionalProperties: false,
@@ -581,6 +585,12 @@ export function apply(ctx, rawConfig = {}) {
                 status: service.statusText(),
               })
             }
+            const wantFp = origin.searchParams.get('fingerprintOf')
+            if (wantFp) {
+              const fingerprint = await service.fingerprintOf(wantFp)
+              const s2 = service.status()
+              return reply(res, 200, { ok: Boolean(fingerprint), fingerprint, ownerAddr: s2.ownerAddr || null, ownerFingerprint: s2.ownerFingerprint || null })
+            }
             const snap = snapshot(config)
             const status = service.status()
             return reply(res, 200, {
@@ -588,6 +598,7 @@ export function apply(ctx, rawConfig = {}) {
               running: Boolean(status.running),
               addr: status.addr || null,
               ownerAddr: status.ownerAddr || null,
+              ownerFingerprint: status.ownerFingerprint || null,
               model: selectionOf(),
               catalog: await service.modelCatalog(),
               snapshot: snap,
@@ -613,6 +624,14 @@ export function apply(ctx, rawConfig = {}) {
                 })
               } catch (error) {
                 return reply(res, 200, { ok: false, error: String(error?.message || error) })
+              }
+            }
+            if (body?.ownerFingerprint) {
+              try {
+                service.setOwnerFingerprint(String(body.ownerFingerprint))
+                return reply(res, 200, { ok: true, running: Boolean(service.status().running), ownerAddr: service.status().ownerAddr || null, ownerFingerprint: service.status().ownerFingerprint || null, snapshot: snapshot(config), status: service.statusText() })
+              } catch (error) {
+                return reply(res, 400, { ok: false, error: String(error?.message || error) })
               }
             }
             if (body?.model && typeof body.model === 'object') {
@@ -651,6 +670,7 @@ export function apply(ctx, rawConfig = {}) {
               ok: true,
               running: Boolean(s.running),
               ownerAddr: s.ownerAddr || null,
+              ownerFingerprint: s.ownerFingerprint || null,
               snapshot: snapshot(config),
               status: service.statusText(),
             })
@@ -676,6 +696,10 @@ export function apply(ctx, rawConfig = {}) {
     if (owner !== undefined) {
       const current = String(service.status().ownerAddr || '').trim().toLowerCase()
       if (String(owner).trim().toLowerCase() !== current) service.setOwner(owner)
+    }
+    const fp = typeof input?.ownerFingerprint === 'string' ? input.ownerFingerprint.replace(/[^0-9a-fA-F]/g, '') : ''
+    if (fp.length === 40 && fp.toUpperCase() !== String(service.status().ownerFingerprint || '')) {
+      service.setOwnerFingerprint(fp)
     }
     if (Object.keys(patch).length) {
       saveUserConfig(config, patch)

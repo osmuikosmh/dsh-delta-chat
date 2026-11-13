@@ -92,6 +92,13 @@ delta_chat_owner clear=true
 
 主人私聊里发 `/unpair` 也能解绑。主人的另一个号用 `/sync` 跟主人确认绑定后，那个号也按主人对待（同一个人，命令同样无条件执行）。**绑定前请确认这个 Delta Chat 账号只有你自己能登录**——主人模式等于把 shell 交给这个账号，邀请链接不要随便发给别人。
 
+## 身份与指纹
+
+- 主人和朋友都用 **Autocrypt 公钥指纹**（40 位十六进制）作为跨设备的身份键：换中继地址、重装、第二台设备只要还是那把密钥，就还是同一个人，记忆和工作区都连续。
+- 地址与指纹都可用：`/delete <指纹>`（也接受邮箱）、`delta_chat_owner` 的 `fingerprint` 参数；地址变化会自动登记为别名（audit `key.alias`）。
+- 联系人目录 `~/.dsh/delta-chat/users/<指纹>/`，升级时自动把旧的 `<地址>` 目录并入（`workspace.migrated`）。
+- 设置页「主人邮箱」旁边可一键「用邮箱解析指纹」；指纹解析失败说明内核还没见过这个联系人，让它先发一条消息。
+
 ## 配置
 
 在 profile 的 `cordis.patch.yml` 里改 `dsh-delta-chat` 那一行的 `config`：
