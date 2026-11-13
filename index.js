@@ -84,15 +84,7 @@ export function apply(ctx, rawConfig = {}) {
       ]
       const workspace = status.workspace || status.session?.cwd
       if (workspace) lines.push(`工作区：${workspace}（主人会话固定在这里）`)
-      if (status.session) {
-        const parts = []
-        if (status.session.model) {
-          const effort = status.session.reasoningEffort ? `（${status.session.reasoningEffort}）` : ''
-          parts.push(`模型 ${status.session.model}${effort}`)
-        }
-        if (status.session.agentPreset) parts.push(`预设 ${status.session.agentPreset}`)
-        if (parts.length) lines.push(`继承自启动会话：${parts.join(' · ')}`)
-      }
+      lines.push(service.modelLine())
       if (status.invite) {
         lines.push('', '邀请链接（发给朋友，对方在 Delta Chat 里打开就能加你）：', status.invite)
       }
