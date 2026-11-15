@@ -300,6 +300,34 @@ export function apply(ctx, rawConfig = {}) {
   }))
 
   disposers.push(ctx.tools.register({
+    name: 'delta_chat_note',
+    description:
+      '记下大肥鱼自己的「心情」或「关于对方的记忆」。以前靠正文里写 [心情]/[记忆] 标记，现在改成调用这个工具，正文里就只剩要说的话。',
+    parameters: {
+      type: 'object',
+      properties: {
+        kind: { type: 'string', enum: ['mood', 'memory'], description: 'mood=此刻的心情；memory=想长期记住的一件事' },
+        text: { type: 'string', description: '内容：心情 10～25 字带上原因；记忆一句话' },
+        chatId: { type: 'number', description: '可选：哪个会话，默认当前会话' },
+      },
+      required: ['kind', 'text'],
+      additionalProperties: false,
+    },
+    output: { schema: OUTPUT_SCHEMA, render },
+    execute: async (args = {}, exec) => {
+      try {
+        const sessionId = exec?.agent?.session?.id || exec?.agent?.id || ''
+        const target = args.chatId !== undefined ? Number(args.chatId) : service.sayTargetFor(sessionId)
+        const result = await service.note(args.kind, args.text, { chatId: target })
+        return { ok: true, text: result.kind === 'mood' ? '心情已经记下了。' : '这件事记进长期记忆了。' }
+      } catch (error) {
+        return { ok: false, text: `记录失败：${error?.message || error}`, error: String(error?.message || error) }
+      }
+    },
+    timeoutMs: 15_000,
+  }))
+
+  disposers.push(ctx.tools.register({
     name: 'delta_chat_prompt',
     description:
       '查看“大肥鱼”聊天子智能体实际收到的系统提示词：风格文件 prompts/persona.md 与硬编码规则拼接后的全文，以及指定会话的压缩记忆和最近几条聊天。改完提示词想确认是否生效时用这个，比问模型可靠。',
