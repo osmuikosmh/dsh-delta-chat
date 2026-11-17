@@ -599,6 +599,16 @@ export function apply(ctx, rawConfig = {}) {
             const queryConfig = origin.searchParams.get('saveConfig')
             const queryPersona = origin.searchParams.get('savePersona')
             const queryLimits = origin.searchParams.get('saveLimits')
+            const queryTranslate = origin.searchParams.get('translatePersona')
+            if (queryTranslate !== null) {
+              const done = await service.translatePersona({ force: true }).catch((error) => error)
+              return reply(res, 200, {
+                ok: done === true,
+                translated: done === true,
+                error: done instanceof Error ? String(done.message || done) : null,
+                snapshot: snapshot(config),
+              })
+            }
             if (queryConfig !== null || queryPersona !== null || queryLimits !== null) {
               if (queryConfig !== null) {
                 await saveSettings(JSON.parse(queryConfig))
