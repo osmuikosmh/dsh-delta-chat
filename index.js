@@ -596,6 +596,9 @@ export function apply(ctx, rawConfig = {}) {
           service.store.audit('settings.request', { method: req.method, search: origin.search.slice(0, 80) })
           if (req.method === 'GET') {
             // GET-with-query saves: some proxies only let GET reach a plugin route.
+            if (origin.searchParams.get('statusOnly') !== null) {
+              return reply(res, 200, { ok: true, personaEnglish: service.personaStatus() })
+            }
             const queryConfig = origin.searchParams.get('saveConfig')
             const queryPersona = origin.searchParams.get('savePersona')
             const queryLimits = origin.searchParams.get('saveLimits')
@@ -639,6 +642,7 @@ export function apply(ctx, rawConfig = {}) {
               ownerAddr: status.ownerAddr || null,
               ownerFingerprint: status.ownerFingerprint || null,
               model: selectionOf(),
+              personaEnglish: service.personaStatus(),
               catalog: await service.modelCatalog(),
               snapshot: snap,
               configFile: userConfigPath(config),
@@ -648,6 +652,13 @@ export function apply(ctx, rawConfig = {}) {
           if (req.method === 'POST') {
             const body = JSON.parse((await readBody(req)) || '{}')
             const action = String(body?.action || '')
+            if (action === 'translatePersona') {
+              // Runs for minutes; answer immediately and let the page poll.
+              service.translatePersona({ force: Boolean(body?.force) })
+                .then(() => service.store.audit('settings.translate_done', {}))
+                .catch((error) => service.store.audit('settings.translate_failed', { error: String(error?.message || error) }))
+              return reply(res, 200, { ok: true, started: true, personaEnglish: service.personaStatus() })
+            }
             if (action === 'start' || action === 'stop') {
               try {
                 const s = action === 'start'
