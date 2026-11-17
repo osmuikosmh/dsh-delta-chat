@@ -603,7 +603,7 @@ export function apply(ctx, rawConfig = {}) {
               if (queryConfig !== null) {
                 await saveSettings(JSON.parse(queryConfig))
               }
-              if (queryPersona !== null) savePersona(config, queryPersona)
+              if (queryPersona !== null) { savePersona(config, queryPersona); service.translatePersona().catch(() => {}) }
               if (queryLimits !== null) saveLimits(config, queryLimits)
               const s = service.status()
               return reply(res, 200, {
@@ -691,6 +691,7 @@ export function apply(ctx, rawConfig = {}) {
             const s = patch ? await saveSettings(patch) : service.status()
             if (typeof body?.persona === 'string') {
               savePersona(config, body.persona)
+              service.translatePersona().catch(() => {})
             }
             if (typeof body?.limits === 'string') {
               saveLimits(config, body.limits)
