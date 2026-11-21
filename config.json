@@ -19,5 +19,6 @@
   "retryMax": 8,
   "memoryChars": 3000,
   "transcriptLimit": 16,
-  "sessionTurns": -10
+  "sessionTurns": -10,
+  "continueText": "continue"
 }

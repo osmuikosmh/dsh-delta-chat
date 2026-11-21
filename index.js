@@ -205,7 +205,7 @@ export function apply(ctx, rawConfig = {}) {
   disposers.push(ctx.tools.register({
     name: 'delta_chat_start',
     description:
-      '启动“大肥鱼”的 Delta Chat 聊天服务：首次运行会自动申请一个 chatmail 账号，生成邀请链接，然后像真人一样在 Delta Chat 里和好友聊天。聊天由后台子智能体完成（每个会话一个，启动服务后按需创建、停止时销毁）：需要外界信息时它会自己调 web_search / web_fetch，不再靠提示词预判搜索。绑定主人后，主人的私聊命令无条件执行、可用完整 DSH 工具；其他人各自有一个工作区文件夹（`~/.dsh/delta-chat/users/<邮箱>/`），只能在里面读写文件、打包收发，命令受黑名单约束（解释器/联网/download/设备信息/进程这类会被拦下），越界路径会被拒绝。启动可能需要 1～4 分钟，返回账号和邀请链接。',
+      'Start the "Big Fatty Fish" Delta Chat service. The first run requests a chatmail account, builds an invite link, and then chats with friends on Delta Chat like a person. Each chat gets its own background subagent (created on demand after start, destroyed on stop); it looks things up with web_search / web_fetch by itself instead of guessing from the prompt. Once an owner is bound, private commands from the owner run unconditionally with the full DSH toolset; everyone else gets a workspace folder (`~/.dsh/delta-chat/users/<address>/`) where they may read, write and pack files, with commands filtered by a denylist (interpreters, network, download, device info, process tools) and out-of-workspace paths refused. Starting can take 1-4 minutes and returns the account and invite link.',
     parameters: {
       type: 'object',
       properties: {},
@@ -218,7 +218,7 @@ export function apply(ctx, rawConfig = {}) {
 
   disposers.push(ctx.tools.register({
     name: 'delta_chat_stop',
-    description: '停止“大肥鱼”的 Delta Chat 聊天服务，断开 Delta Chat 内核，不再收发消息。',
+    description: 'Stop the "Big Fatty Fish" Delta Chat service: disconnect the Delta Chat core and stop sending or receiving messages.',
     parameters: {
       type: 'object',
       properties: {},
@@ -245,7 +245,7 @@ export function apply(ctx, rawConfig = {}) {
 
   disposers.push(ctx.tools.register({
     name: 'delta_chat_archive_sessions',
-    description: '把大肥鱼每次思考留下的临时会话从 DSH 的“未分组”列表里归档掉（正在用的会话会跳过）。',
+    description: 'Archive the throwaway DSH sessions left by Big Fatty Fish thinking, so they leave the "Ungrouped" list (the ones still in use are skipped).',
     parameters: {
       type: 'object',
       properties: {},
@@ -258,7 +258,7 @@ export function apply(ctx, rawConfig = {}) {
 
   disposers.push(ctx.tools.register({
     name: 'delta_chat_workspaces',
-    description: '调试：查看本次运行各子智能体会话在工作区注册表里的归属情况。',
+    description: 'Debug: show which workspace each subagent session of this run is attached to.',
     parameters: { type: 'object', properties: {}, additionalProperties: false },
     output: { schema: OUTPUT_SCHEMA, render },
     execute: async () => {
@@ -270,7 +270,7 @@ export function apply(ctx, rawConfig = {}) {
 
   disposers.push(ctx.tools.register({
     name: 'delta_chat_status',
-    description: '查看“大肥鱼” Delta Chat 服务的运行状态、账号地址、邀请链接、主人绑定码、聊天统计和最近错误。',
+    description: 'Show the Big Fatty Fish service status: account address, invite link, owner binding code, chat statistics and the last error.',
     parameters: {
       type: 'object',
       properties: {},
@@ -284,12 +284,12 @@ export function apply(ctx, rawConfig = {}) {
   disposers.push(ctx.tools.register({
     name: 'delta_chat_rpc',
     description:
-      '直接调用 Delta Chat 内核的 JSON-RPC 方法（插件没封装的能力从这里走）。参数 method 是内核方法名（如 get_contact、send_reaction），params 是参数数组。主人可调全部方法；朋友的调用会被限制在自己的会话/联系人范围内，只读查询不限。',
+      'Call a Delta Chat core JSON-RPC method directly (for anything the plugin does not wrap). method is the core method name (e.g. get_contact, send_reaction), params is the argument array. The owner may call anything; friends are limited to their own chats and contacts, while read-only queries are unrestricted.',
     parameters: {
       type: 'object',
       properties: {
-        method: { type: 'string', description: 'Delta Chat core JSON-RPC 方法名，例如 get_config、get_contacts' },
-        params: { type: 'array', description: '按内核签名顺序的参数数组；没有参数就省略', items: {} },
+        method: { type: 'string', description: 'Delta Chat core JSON-RPC method name, e.g. get_config, get_contacts' },
+        params: { type: 'array', description: 'Argument array in the order the core expects; omit it when there are no arguments', items: {} },
       },
       required: ['method'],
       additionalProperties: false,
@@ -302,13 +302,13 @@ export function apply(ctx, rawConfig = {}) {
   disposers.push(ctx.tools.register({
     name: 'delta_chat_note',
     description:
-      '记下大肥鱼自己的「心情」或「关于对方的记忆」。以前靠正文里写 [心情]/[记忆] 标记，现在改成调用这个工具，正文里就只剩要说的话。',
+      'Record Big Fatty Fish\'s own mood or a memory about the other person. This replaces the old [mood]/[memory] text markers, so the message body contains only what should be said.',
     parameters: {
       type: 'object',
       properties: {
-        kind: { type: 'string', enum: ['mood', 'memory'], description: 'mood=此刻的心情；memory=想长期记住的一件事' },
-        text: { type: 'string', description: '内容：心情 10～25 字带上原因；记忆一句话' },
-        chatId: { type: 'number', description: '可选：哪个会话，默认当前会话' },
+        kind: { type: 'string', enum: ['mood', 'memory'], description: 'mood = how it feels right now; memory = something worth remembering long-term' },
+        text: { type: 'string', description: 'Content: for mood, 10-25 words including the reason; for memory, one sentence' },
+        chatId: { type: 'number', description: 'Optional: which chat; defaults to the current one' },
       },
       required: ['kind', 'text'],
       additionalProperties: false,
@@ -319,9 +319,9 @@ export function apply(ctx, rawConfig = {}) {
         const sessionId = exec?.agent?.session?.id || exec?.agent?.id || ''
         const target = args.chatId !== undefined ? Number(args.chatId) : service.sayTargetFor(sessionId)
         const result = await service.note(args.kind, args.text, { chatId: target })
-        return { ok: true, text: result.kind === 'mood' ? '心情已经记下了。' : '这件事记进长期记忆了。' }
+        return { ok: true, text: result.kind === 'mood' ? 'Mood recorded.' : 'Added to long-term memory.' }
       } catch (error) {
-        return { ok: false, text: `记录失败：${error?.message || error}`, error: String(error?.message || error) }
+        return { ok: false, text: `Could not record it: ${error?.message || error}`, error: String(error?.message || error) }
       }
     },
     timeoutMs: 15_000,
@@ -330,12 +330,12 @@ export function apply(ctx, rawConfig = {}) {
   disposers.push(ctx.tools.register({
     name: 'delta_chat_prompt',
     description:
-      '查看“大肥鱼”聊天子智能体实际收到的系统提示词：风格文件 prompts/persona.md 与硬编码规则拼接后的全文，以及指定会话的压缩记忆和最近几条聊天。改完提示词想确认是否生效时用这个，比问模型可靠。',
+      'Show the system prompt a chat subagent actually receives: the hardcoded rules plus the style file prompts/persona.md, and optionally the compressed memory and last few messages of a chat. Use it to verify a prompt change instead of asking the model.',
     parameters: {
       type: 'object',
       properties: {
-        kind: { type: 'string', enum: ['friend', 'owner'], description: '查看朋友聊天还是主人助理的提示词，默认 friend' },
-        chatId: { type: 'number', description: '可选：同时查看这个 Delta Chat 会话的记忆与最近聊天' },
+        kind: { type: 'string', enum: ['friend', 'owner'], description: 'Whether to show the friend prompt or the owner prompt; defaults to friend' },
+        chatId: { type: 'number', description: 'Optional: also show this chat\'s memory and recent messages' },
       },
       additionalProperties: false,
     },
@@ -347,12 +347,12 @@ export function apply(ctx, rawConfig = {}) {
   disposers.push(ctx.tools.register({
     name: 'delta_chat_say',
     description:
-      '在一条回合还没结束时，先通过“大肥鱼”的 Delta Chat 账号发一句话（报进度、回答中途插话）。大肥鱼自己的聊天子智能体在干活途中想说话时就调它，消息立刻发出，不用等最终回复；最终回复照旧另外发。',
+      'Send one line through the Big Fatty Fish account before the current turn ends (progress, or answering something that arrived mid-turn). The chat subagent calls it when it wants to speak while working; the message goes out immediately and the final reply is still sent separately.',
     parameters: {
       type: 'object',
       properties: {
-        text: { type: 'string', description: '要立刻发出去的那句话' },
-        chatId: { type: 'number', description: '可选：发给哪个会话；聊天子智能体默认发给自己那个会话' },
+        text: { type: 'string', description: 'The line to send right away' },
+        chatId: { type: 'number', description: 'Optional: target chat; a chat subagent defaults to its own chat' },
       },
       required: ['text'],
       additionalProperties: false,
@@ -363,9 +363,9 @@ export function apply(ctx, rawConfig = {}) {
         const sessionId = exec?.agent?.session?.id || exec?.agent?.id || ''
         const target = args.chatId !== undefined ? Number(args.chatId) : service.sayTargetFor(sessionId)
         const result = await service.say(args.text, { chatId: target })
-        return { ok: true, text: `已经先发到会话 ${result.chatId}。` }
+        return { ok: true, text: `Sent to chat ${result.chatId}.` }
       } catch (error) {
-        return { ok: false, text: `中途发言失败：${error?.message || error}`, error: String(error?.message || error) }
+        return { ok: false, text: `Could not send mid-turn: ${error?.message || error}`, error: String(error?.message || error) }
       }
     },
     timeoutMs: 120_000,
@@ -374,13 +374,13 @@ export function apply(ctx, rawConfig = {}) {
   disposers.push(ctx.tools.register({
     name: 'delta_chat_relay',
     description:
-      '管理“大肥鱼”Delta Chat 账号的中转站（relay）：一个账号可以有多个地址，分布在不同的 chatmail 中转站，别人用哪个地址找它都能收到。主人要求“换个/加个中转站”，或者当前中转站连不上、想多一个备用地址时，用这个工具。action=list 看现状，add 加一个（target 填域名，比如 nine.testrun.org），remove 删一个。只有主人能用。',
+      'Manage the relays of the Big Fatty Fish Delta Chat account: one account can have several addresses on different chatmail relays, and it receives on any of them. Use it when the owner wants another relay, a different server, or a backup address. action=list shows them, add requests one (target is a domain such as nine.testrun.org), login attaches an existing mailbox, set chooses the address new friends enter through, remove deletes one. Owner only.',
     parameters: {
       type: 'object',
       properties: {
-        action: { type: 'string', enum: ['list', 'add', 'remove', 'login', 'set'], description: 'list=查看，add=在中转站申请新地址，login=把一个已有邮箱挂成新地址，set=指定新朋友从哪个地址进来，remove=删除' },
-        target: { type: 'string', description: 'add/remove 时的中转站域名或已有地址；login 时是邮箱地址，例如 abc@chatmail.uk' },
-        password: { type: 'string', description: 'login 时该邮箱的密码' },
+        action: { type: 'string', enum: ['list', 'add', 'remove', 'login', 'set'], description: 'list = show, add = request a new address on a relay, login = attach an existing mailbox, set = choose the address new friends enter through, remove = delete' },
+        target: { type: 'string', description: 'Relay domain or existing address for add/remove; the mailbox address for login, e.g. abc@chatmail.uk' },
+        password: { type: 'string', description: 'Password of that mailbox for login' },
       },
       required: ['action'],
       additionalProperties: false,
@@ -392,7 +392,7 @@ export function apply(ctx, rawConfig = {}) {
         const chatId = service.sayTargetFor(sessionId)
         // Friends may not touch the account's relays; the owner may.
         if (chatId !== null && !service.chatIsOwner(chatId)) {
-          return { ok: false, text: '中转站是账号级别的事，只有主人能改。', error: 'not-owner' }
+          return { ok: false, text: 'Relays belong to the account; only the owner can change them.', error: 'not-owner' }
         }
         const action = String(args.action || 'list')
         if (action === 'list') {
@@ -402,19 +402,19 @@ export function apply(ctx, rawConfig = {}) {
         }
         if (action === 'add') {
           const res = await service.addRelay(args.target, { via: 'tool' })
-          return { ok: true, text: `已在 ${res.host} 加好，新地址 ${res.addr || '（读不到）'}；现在共 ${res.transports.length} 个中转站。` }
+          return { ok: true, text: `Added on ${res.host}: ${res.addr || '(address unknown)'}; ${res.transports.length} relays in total.` }
         }
         if (action === 'login') {
           const res = await service.addRelayLogin(args.target, args.password, { via: 'tool' })
-          return { ok: true, text: `挂上了 ${res.addr}，现在共 ${res.transports.length} 个中转站。` }
+          return { ok: true, text: `Attached ${res.addr}; ${res.transports.length} relays in total.` }
         }
         if (action === 'set') {
           const addr = await service.setRelayAddress(String(args.target || ''), { via: 'tool' })
-          return { ok: true, text: `新朋友以后走 ${addr} 这个地址。` }
+          return { ok: true, text: `New friends will reach it at ${addr}.` }
         }
         if (action === 'remove') {
           const res = await service.removeRelay(args.target, { via: 'tool' })
-          return { ok: true, text: `删掉了 ${res.removed}，还剩 ${res.transports.length} 个中转站。` }
+          return { ok: true, text: `Removed ${res.removed}; ${res.transports.length} relays left.` }
         }
         return { ok: false, text: `不认识的 action：${action}`, error: 'bad-action' }
       } catch (error) {
@@ -427,13 +427,13 @@ export function apply(ctx, rawConfig = {}) {
   disposers.push(ctx.tools.register({
     name: 'delta_chat_send_file',
     description:
-      '把本机上的一个图片/文件通过“大肥鱼”的 Delta Chat 账号发出去。默认发给最近一次给大肥鱼下指令的主人会话；也可以显式给 chatId。主人让大肥鱼发图、发文件时用这个。',
+      'Send an image or file from this machine through the Big Fatty Fish account. Defaults to the owner chat that last gave an instruction; chatId overrides it.',
     parameters: {
       type: 'object',
       properties: {
-        path: { type: 'string', description: '要发送的文件的绝对路径，例如 /sdcard/DCIM/cat.png' },
-        caption: { type: 'string', description: '可选的配文，会跟附件一起发' },
-        chatId: { type: 'number', description: '可选：目标 Delta Chat 会话 id；默认最近的主人会话' },
+        path: { type: 'string', description: 'Absolute path of the file to send, e.g. /sdcard/DCIM/cat.png' },
+        caption: { type: 'string', description: 'Optional caption sent with the attachment' },
+        chatId: { type: 'number', description: 'Optional: target chat id; defaults to the last owner chat' },
       },
       required: ['path'],
       additionalProperties: false,
@@ -445,8 +445,8 @@ export function apply(ctx, rawConfig = {}) {
           caption: args.caption,
           chatId: args.chatId,
         })
-        if (!result.messageId) return { ok: false, text: '文件没发出去，看审计日志里的 attachment.error' }
-        return { ok: true, text: `已把 ${args.path} 发到会话 ${result.chatId}` }
+        if (!result.messageId) return { ok: false, text: 'The file did not go out; check attachment.error in the audit log' }
+        return { ok: true, text: `Sent ${args.path} to chat ${result.chatId}` }
       } catch (error) {
         return { ok: false, text: `发送失败：${error?.message || error}`, error: String(error?.message || error) }
       }
@@ -457,16 +457,16 @@ export function apply(ctx, rawConfig = {}) {
   disposers.push(ctx.tools.register({
     name: 'delta_chat_schedule',
     description:
-      '给“大肥鱼”自己定一个“到点醒来想想”的时刻：到点它才读当时的情况、自己想说什么，也可能决定不说。主人说「X 分钟后提醒我」「半小时后再跟我说」「每天九点叫我」时用它，不要自己写插件或开后台进程。',
+      'Give Big Fatty Fish a moment to wake up and think later: when due, it reads the situation then and decides what to say - possibly nothing. Use this for "remind me in X minutes", "tell me in half an hour", "wake me at nine every day" instead of writing plugins or background processes.',
     parameters: {
       type: 'object',
       properties: {
-        text: { type: 'string', description: '由头：到点要让它想起什么、打算说什么（不是逐字发送，到点它会结合上下文重新组织，也可能觉得不合适就不说）' },
-        afterSeconds: { type: 'number', description: '多少秒之后发' },
-        atIso: { type: 'string', description: '绝对时间，ISO 格式，如 2026-10-31T09:00:00+08:00' },
-        everySeconds: { type: 'number', description: '可选：每隔多少秒重复一次（至少 30）' },
-        chatId: { type: 'number', description: '可选：发给哪个会话，默认当前正在说话的会话' },
-        note: { type: 'string', description: '可选：备注，方便以后辨认' },
+        text: { type: 'string', description: 'The reason: what it should recall and roughly say when due (not sent verbatim - it rephrases in context, and may decide to stay silent)' },
+        afterSeconds: { type: 'number', description: 'Seconds from now' },
+        atIso: { type: 'string', description: 'Absolute time in ISO format, e.g. 2026-10-31T09:00:00+08:00' },
+        everySeconds: { type: 'number', description: 'Optional: repeat every N seconds (at least 30)' },
+        chatId: { type: 'number', description: 'Optional: target chat; defaults to the one being talked to' },
+        note: { type: 'string', description: 'Optional: a note so you can recognise it later' },
       },
       required: ['text'],
       additionalProperties: false,
@@ -497,7 +497,7 @@ export function apply(ctx, rawConfig = {}) {
 
   disposers.push(ctx.tools.register({
     name: 'delta_chat_schedules',
-    description: '列出“大肥鱼”排着的定时消息（主人用）。',
+    description: 'List the timed messages Big Fatty Fish has queued (owner only).',
     parameters: { type: 'object', properties: {}, additionalProperties: false },
     output: { schema: OUTPUT_SCHEMA, render },
     execute: async () => {
@@ -517,10 +517,10 @@ export function apply(ctx, rawConfig = {}) {
 
   disposers.push(ctx.tools.register({
     name: 'delta_chat_schedule_cancel',
-    description: '取消一条“大肥鱼”排着的定时消息（主人用），id 可以只给前缀。',
+    description: 'Cancel a queued timed message of Big Fatty Fish (owner only); the id may be a prefix.',
     parameters: {
       type: 'object',
-      properties: { id: { type: 'string', description: '定时消息 id，或它的前缀' } },
+      properties: { id: { type: 'string', description: 'Timed message id, or a prefix of it' } },
       required: ['id'],
       additionalProperties: false,
     },
@@ -538,13 +538,13 @@ export function apply(ctx, rawConfig = {}) {
   disposers.push(ctx.tools.register({
     name: 'delta_chat_owner',
     description:
-      '查看或设置“大肥鱼”的主人（地址或公钥指纹均可）。只有主人账号发来的私聊会启用完整 DSH 助理模式，命令无条件执行（可调用 bash、读写文件、搜索等全部工具）；其他人只能普通聊天，子智能体会自己审核每一步、系统读写一律被拦截。传 address 绑定，传 clear 或空地址解绑。',
+      'Show or set the owner of Big Fatty Fish (address or public-key fingerprint). Only private messages from the owner account unlock the full DSH assistant mode with unconditional commands (bash, file access, search); everyone else gets ordinary chat, where the subagent vets every step and system access is blocked. Pass address to bind, or clear/empty to unbind.',
     parameters: {
       type: 'object',
       properties: {
-        address: { type: 'string', description: '主人的 Delta Chat 邮箱地址，例如 someone@chatmail.cc；留空表示解绑' },
-        fingerprint: { type: 'string', description: '主人的 Autocrypt 公钥指纹（40 位十六进制，可用空格分组）；填了它就按指纹绑定，地址会从已知联系人里自动补齐' },
-        clear: { type: 'boolean', description: '设为 true 解绑当前主人' },
+        address: { type: 'string', description: 'Owner\'s Delta Chat address, e.g. someone@chatmail.cc; leave empty to unbind' },
+        fingerprint: { type: 'string', description: 'Owner\'s Autocrypt fingerprint (40 hex chars, may be space-grouped). The address is filled in from known contacts when only the fingerprint is given' },
+        clear: { type: 'boolean', description: 'Set to true to unbind the current owner' },
       },
       additionalProperties: false,
     },
@@ -554,9 +554,9 @@ export function apply(ctx, rawConfig = {}) {
   }))
 
   const commands = [
-    { name: 'delta_chat_start', description: '启动大肥鱼的 Delta Chat 服务', run: start },
-    { name: 'delta_chat_stop', description: '停止大肥鱼的 Delta Chat 服务', run: stop },
-    { name: 'delta_chat_status', description: '查看大肥鱼 Delta Chat 服务状态', run: statusTool },
+    { name: 'delta_chat_start', description: 'Start the Big Fatty Fish Delta Chat service', run: start },
+    { name: 'delta_chat_stop', description: 'Stop the Big Fatty Fish Delta Chat service', run: stop },
+    { name: 'delta_chat_status', description: 'Show the Big Fatty Fish service status', run: statusTool },
   ]
   for (const command of commands) {
     disposers.push(ctx.commands.register({
