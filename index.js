@@ -372,6 +372,50 @@ export function apply(ctx, rawConfig = {}) {
   }))
 
   disposers.push(ctx.tools.register({
+    name: 'delta_chat_relay',
+    description:
+      '管理“大肥鱼”Delta Chat 账号的中转站（relay）：一个账号可以有多个地址，分布在不同的 chatmail 中转站，别人用哪个地址找它都能收到。主人要求“换个/加个中转站”，或者当前中转站连不上、想多一个备用地址时，用这个工具。action=list 看现状，add 加一个（target 填域名，比如 nine.testrun.org），remove 删一个。只有主人能用。',
+    parameters: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', enum: ['list', 'add', 'remove'], description: 'list=查看，add=添加，remove=删除' },
+        target: { type: 'string', description: 'add/remove 时的中转站域名或已有地址，例如 nine.testrun.org' },
+      },
+      required: ['action'],
+      additionalProperties: false,
+    },
+    output: { schema: OUTPUT_SCHEMA, render },
+    execute: async (args = {}, exec) => {
+      try {
+        const sessionId = exec?.agent?.session?.id || exec?.agent?.id || ''
+        const chatId = service.sayTargetFor(sessionId)
+        // Friends may not touch the account's relays; the owner may.
+        if (chatId !== null && !service.chatIsOwner(chatId)) {
+          return { ok: false, text: '中转站是账号级别的事，只有主人能改。', error: 'not-owner' }
+        }
+        const action = String(args.action || 'list')
+        if (action === 'list') {
+          const list = await service.relayList()
+          if (!list.length) return { ok: true, text: '还读不到中转站列表。' }
+          return { ok: true, text: list.map((item) => `${item.addr}${item.current ? '（当前对外地址）' : ''}`).join('\n') }
+        }
+        if (action === 'add') {
+          const res = await service.addRelay(args.target, { via: 'tool' })
+          return { ok: true, text: `已在 ${res.host} 加好，新地址 ${res.addr || '（读不到）'}；现在共 ${res.transports.length} 个中转站。` }
+        }
+        if (action === 'remove') {
+          const res = await service.removeRelay(args.target, { via: 'tool' })
+          return { ok: true, text: `删掉了 ${res.removed}，还剩 ${res.transports.length} 个中转站。` }
+        }
+        return { ok: false, text: `不认识的 action：${action}`, error: 'bad-action' }
+      } catch (error) {
+        return { ok: false, text: `中转站操作失败：${error?.message || error}`, error: String(error?.message || error) }
+      }
+    },
+    timeoutMs: 260_000,
+  }))
+
+  disposers.push(ctx.tools.register({
     name: 'delta_chat_send_file',
     description:
       '把本机上的一个图片/文件通过“大肥鱼”的 Delta Chat 账号发出去。默认发给最近一次给大肥鱼下指令的主人会话；也可以显式给 chatId。主人让大肥鱼发图、发文件时用这个。',
