@@ -378,7 +378,7 @@ export function apply(ctx, rawConfig = {}) {
     parameters: {
       type: 'object',
       properties: {
-        action: { type: 'string', enum: ['list', 'add', 'remove', 'login'], description: 'list=查看，add=在中转站申请新地址，login=把一个已有邮箱挂成新地址，remove=删除' },
+        action: { type: 'string', enum: ['list', 'add', 'remove', 'login', 'set'], description: 'list=查看，add=在中转站申请新地址，login=把一个已有邮箱挂成新地址，set=指定新朋友从哪个地址进来，remove=删除' },
         target: { type: 'string', description: 'add/remove 时的中转站域名或已有地址；login 时是邮箱地址，例如 abc@chatmail.uk' },
         password: { type: 'string', description: 'login 时该邮箱的密码' },
       },
@@ -407,6 +407,10 @@ export function apply(ctx, rawConfig = {}) {
         if (action === 'login') {
           const res = await service.addRelayLogin(args.target, args.password, { via: 'tool' })
           return { ok: true, text: `挂上了 ${res.addr}，现在共 ${res.transports.length} 个中转站。` }
+        }
+        if (action === 'set') {
+          const addr = await service.setRelayAddress(String(args.target || ''), { via: 'tool' })
+          return { text: `新朋友以后走 ${addr} 这个地址。`, value: { ok: true, addr } }
         }
         if (action === 'remove') {
           const res = await service.removeRelay(args.target, { via: 'tool' })
