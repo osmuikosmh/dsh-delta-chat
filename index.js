@@ -378,8 +378,9 @@ export function apply(ctx, rawConfig = {}) {
     parameters: {
       type: 'object',
       properties: {
-        action: { type: 'string', enum: ['list', 'add', 'remove'], description: 'list=查看，add=添加，remove=删除' },
-        target: { type: 'string', description: 'add/remove 时的中转站域名或已有地址，例如 nine.testrun.org' },
+        action: { type: 'string', enum: ['list', 'add', 'remove', 'login'], description: 'list=查看，add=在中转站申请新地址，login=把一个已有邮箱挂成新地址，remove=删除' },
+        target: { type: 'string', description: 'add/remove 时的中转站域名或已有地址；login 时是邮箱地址，例如 abc@chatmail.uk' },
+        password: { type: 'string', description: 'login 时该邮箱的密码' },
       },
       required: ['action'],
       additionalProperties: false,
@@ -402,6 +403,10 @@ export function apply(ctx, rawConfig = {}) {
         if (action === 'add') {
           const res = await service.addRelay(args.target, { via: 'tool' })
           return { ok: true, text: `已在 ${res.host} 加好，新地址 ${res.addr || '（读不到）'}；现在共 ${res.transports.length} 个中转站。` }
+        }
+        if (action === 'login') {
+          const res = await service.addRelayLogin(args.target, args.password, { via: 'tool' })
+          return { ok: true, text: `挂上了 ${res.addr}，现在共 ${res.transports.length} 个中转站。` }
         }
         if (action === 'remove') {
           const res = await service.removeRelay(args.target, { via: 'tool' })
