@@ -410,7 +410,7 @@ export function apply(ctx, rawConfig = {}) {
         }
         if (action === 'set') {
           const addr = await service.setRelayAddress(String(args.target || ''), { via: 'tool' })
-          return { text: `新朋友以后走 ${addr} 这个地址。`, value: { ok: true, addr } }
+          return { ok: true, text: `新朋友以后走 ${addr} 这个地址。` }
         }
         if (action === 'remove') {
           const res = await service.removeRelay(args.target, { via: 'tool' })
