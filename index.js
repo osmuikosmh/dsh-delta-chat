@@ -347,7 +347,7 @@ export function apply(ctx, rawConfig = {}) {
   disposers.push(ctx.tools.register({
     name: 'delta_chat_recall',
     description:
-      'Look into archived Delta Chat agent sessions (older conversations the bot had, one per chat). action=search greps transcripts for a keyword and returns snippets; action=list shows the most recent archived sessions; action=open takes one out of the archive so the workspace shows it again; action=close puts it back. Use it when the owner mentions something from an earlier conversation and the current transcript no longer has it. Owner only.',
+      'Deeper memory for this very chat: archived Delta Chat agent sessions of the conversation you are in (never anyone else\'s, the owner included). action=search greps those transcripts for a keyword and returns snippets; action=list shows this chat\'s archived sessions; action=open takes one out of the archive, action=close puts it back. Check the Delta Chat transcript first; when it is not detailed enough, search here, then open the session the snippet came from.',
     parameters: {
       type: 'object',
       properties: {
@@ -364,10 +364,8 @@ export function apply(ctx, rawConfig = {}) {
       try {
         const sessionId = exec?.agent?.session?.id || exec?.agent?.id || ''
         const chatId = service.sayTargetFor(sessionId)
-        if (chatId !== null && !service.chatIsOwner(chatId)) {
-          return { ok: false, text: 'Archived sessions hold other people\'s conversations; only the owner can look at them.', error: 'not-owner' }
-        }
         const res = await service.recall({
+          chatId,
           action: String(args.action || 'search'),
           query: String(args.query || ''),
           sessionId: String(args.sessionId || ''),
