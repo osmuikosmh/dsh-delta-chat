@@ -157,6 +157,7 @@ Delta Chat 的账号可以挂多个 transport：同一个“大肥鱼”在不�
 | `agentCwd` | 空 | 主人模式下 DSH 助理的工作目录；空则用 `$HOME` |
 | `agentMaxTokens` | `8000` | 子智能体单次回复的 token 上限 |
 | `agentTimeoutSeconds` | `600` | 子智能体单次任务超时（秒），可在设置页改 |
+| `friendToolsDir` | `''` | 共享工具目录（留空 = `<数据目录>/tools`）：朋友可读、可按绝对路径执行，不可写 |
 | `timeoutExtensions` | `2` | 超时后允许子智能体自己决定续跑几次，每次再加同样的时长 |
 
 ## 数据与隐私
