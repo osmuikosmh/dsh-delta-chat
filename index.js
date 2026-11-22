@@ -345,6 +345,43 @@ export function apply(ctx, rawConfig = {}) {
   }))
 
   disposers.push(ctx.tools.register({
+    name: 'delta_chat_recall',
+    description:
+      'Look into archived Delta Chat agent sessions (older conversations the bot had, one per chat). action=search greps transcripts for a keyword and returns snippets; action=list shows the most recent archived sessions; action=open takes one out of the archive so the workspace shows it again; action=close puts it back. Use it when the owner mentions something from an earlier conversation and the current transcript no longer has it. Owner only.',
+    parameters: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', enum: ['search', 'list', 'open', 'close'], description: 'search = grep transcripts, list = recent archived sessions, open = un-archive, close = archive again' },
+        query: { type: 'string', description: 'Keyword for action=search, e.g. a name or a topic' },
+        sessionId: { type: 'string', description: 'Session id for open/close (take it from search or list)' },
+        limit: { type: 'number', description: 'Max hits (search) or rows (list); defaults to 6' },
+      },
+      required: ['action'],
+      additionalProperties: false,
+    },
+    output: { schema: OUTPUT_SCHEMA, render },
+    execute: async (args = {}, exec) => {
+      try {
+        const sessionId = exec?.agent?.session?.id || exec?.agent?.id || ''
+        const chatId = service.sayTargetFor(sessionId)
+        if (chatId !== null && !service.chatIsOwner(chatId)) {
+          return { ok: false, text: 'Archived sessions hold other people\'s conversations; only the owner can look at them.', error: 'not-owner' }
+        }
+        const res = await service.recall({
+          action: String(args.action || 'search'),
+          query: String(args.query || ''),
+          sessionId: String(args.sessionId || ''),
+          limit: Number(args.limit) || 6,
+        })
+        return res
+      } catch (error) {
+        return { ok: false, text: error?.message || String(error), error: cleanError(error) }
+      }
+    },
+    timeoutMs: 120_000,
+  }))
+
+  disposers.push(ctx.tools.register({
     name: 'delta_chat_say',
     description:
       'Send one line through the Big Fatty Fish account before the current turn ends (progress, or answering something that arrived mid-turn). The chat subagent calls it when it wants to speak while working; the message goes out immediately and the final reply is still sent separately.',
