@@ -14,6 +14,7 @@
   "agentCwd": "",
   "agentMaxTokens": 8000,
   "agentTimeoutSeconds": 600,
+  "timeoutExtensions": 2,
   "autoResume": true,
   "retryEveryMinutes": 30,
   "retryMax": 8,

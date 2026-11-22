@@ -156,7 +156,8 @@ Delta Chat 的账号可以挂多个 transport：同一个“大肥鱼”在不�
 | `promptDir` | `~/.dsh/delta-chat/prompts/` | 风格提示词目录；留空用数据目录那份（首次从包内复制） |
 | `agentCwd` | 空 | 主人模式下 DSH 助理的工作目录；空则用 `$HOME` |
 | `agentMaxTokens` | `8000` | 子智能体单次回复的 token 上限 |
-| `agentTimeoutSeconds` | `600` | 子智能体单次任务超时时间（主人/聊天共用） |
+| `agentTimeoutSeconds` | `600` | 子智能体单次任务超时（秒），可在设置页改 |
+| `timeoutExtensions` | `2` | 超时后允许子智能体自己决定续跑几次，每次再加同样的时长 |
 
 ## 数据与隐私
 
