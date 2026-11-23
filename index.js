@@ -730,6 +730,7 @@ export function apply(ctx, rawConfig = {}) {
               ownerAddr: status.ownerAddr || null,
               ownerFingerprint: status.ownerFingerprint || null,
               model: selectionOf(),
+              utility: service.utilitySelection(),
               personaEnglish: service.personaStatus(),
               catalog: await service.modelCatalog(),
               snapshot: snap,
@@ -788,6 +789,29 @@ export function apply(ctx, rawConfig = {}) {
                   running: Boolean(s.running),
                   ownerAddr: s.ownerAddr || null,
                   model: selectionOf(),
+                  catalog: await service.modelCatalog(),
+                  snapshot: snapshot(config),
+                  status: service.statusText(),
+                })
+              } catch (error) {
+                return reply(res, 200, { ok: false, error: String(error?.message || error) })
+              }
+            }
+            if (body?.utility && typeof body.utility === 'object') {
+              try {
+                await service.setUtility(body.utility)
+                saveUserConfig(config, {
+                  utilityProvider: String(body.utility.provider || ''),
+                  utilityModel: String(body.utility.model || ''),
+                  utilityReasoningEffort: String(body.utility.reasoningEffort || ''),
+                })
+                Object.assign(config, loadConfig(rawConfig))
+                service.store.audit('settings.model_utility', { model: String(body.utility.model || '') })
+                const s = service.status()
+                return reply(res, 200, {
+                  ok: true,
+                  running: Boolean(s.running),
+                  utility: service.utilitySelection(),
                   catalog: await service.modelCatalog(),
                   snapshot: snapshot(config),
                   status: service.statusText(),
