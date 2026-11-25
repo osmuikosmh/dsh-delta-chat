@@ -364,14 +364,14 @@ export function apply(ctx, rawConfig = {}) {
       try {
         const sessionId = exec?.agent?.session?.id || exec?.agent?.id || ''
         const chatId = service.sayTargetFor(sessionId)
-        const res = await service.recall({
+        const raw = await service.recall({
           chatId,
           action: String(args.action || 'search'),
           query: String(args.query || ''),
           sessionId: String(args.sessionId || ''),
           limit: Number(args.limit) || 6,
         })
-        return res
+        return { ok: Boolean(raw?.ok), text: String(raw?.text || '') }
       } catch (error) {
         return { ok: false, text: error?.message || String(error), error: cleanError(error) }
       }
