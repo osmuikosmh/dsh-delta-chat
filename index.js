@@ -318,7 +318,7 @@ export function apply(ctx, rawConfig = {}) {
       try {
         const sessionId = exec?.agent?.session?.id || exec?.agent?.id || ''
         const target = args.chatId !== undefined ? Number(args.chatId) : service.sayTargetFor(sessionId)
-        const result = await service.note(args.kind, args.text, { chatId: target })
+        const result = await service.note(args.kind, args.text, { chatId: target, sessionId })
         return { ok: true, text: result.kind === 'mood' ? 'Mood recorded.' : 'Added to long-term memory.' }
       } catch (error) {
         return { ok: false, text: `Could not record it: ${error?.message || error}`, error: String(error?.message || error) }
